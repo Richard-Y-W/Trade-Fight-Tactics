@@ -1,0 +1,70 @@
+[
+  {
+    "name": "opening-bell",
+    "title": "Monday / The opening bell",
+    "seed": 284,
+    "scenario": "calm",
+    "markets": 3,
+    "left": [
+      "maker",
+      "router",
+      "analyst"
+    ],
+    "right": [
+      "manual",
+      "clerk",
+      "agency-clerk"
+    ],
+    "autopilot": [
+      true,
+      true
+    ],
+    "star": 1,
+    "frames": 89,
+    "durationSeconds": 44.5,
+    "render": "Offline SVG engine replay; not an application screen recording",
+    "traceSha256": "e7eca383c4ae1c4b654084a693be0bfb09b4ed9fada436581c49aeb98e8916fc",
+    "scores": [
+      19.638235738177173,
+      7.0160112460052915
+    ]
+  },
+  {
+    "name": "friday-stress",
+    "title": "Friday / Under pressure",
+    "seed": 221,
+    "scenario": "shock",
+    "markets": 5,
+    "left": [
+      "maker",
+      "research",
+      "hedge",
+      "execution",
+      "liquidity",
+      "router",
+      "clerk"
+    ],
+    "right": [
+      "manual",
+      "broker",
+      "macro",
+      "sizing",
+      "prime",
+      "analyst",
+      "agency-trader"
+    ],
+    "autopilot": [
+      true,
+      true
+    ],
+    "star": 1,
+    "frames": 89,
+    "durationSeconds": 44.5,
+    "render": "Offline SVG engine replay; not an application screen recording",
+    "traceSha256": "4418ce10ff45c3eb060888a7ef6dfe8a378b519046c5aafdffaa991c9bb01641",
+    "scores": [
+      5.629954982725394,
+      -155.78690223876038
+    ]
+  }
+]
