@@ -1,4 +1,5 @@
 import { buildConfig,byId,unitGrade,traitLevel } from './roster.js';
+import { stampEvents } from './combat-events.js';
 import { setupBooks,advanceBook,customerOrder,cancelFirmOrders,syncQuotes,seedQuoteSnapshot } from './market-session.js';
 export { CARDS } from './roster.js';
 export const ASSETS = [
@@ -23,6 +24,14 @@ export function createDay(cards = [], seed = 12345, rival = ['maker', 'research'
   if(options.enabled) s.firms[0].enabled=ASSETS.map((_,a)=>options.enabled[a]!==false);
   s.firms[0].option = option;
   if (option) s.firms[0].cash -= 8;
+  s.fundamentals=[...s.prices];s.fundamentalHistory=s.prices.map(p=>[p]);s.observationRandom=rng(seed+800003);s.pendingSignals=[];s.eventSequence=0;s.replay=[];
+  s.firms.forEach(f=>{f.beliefs=[...s.prices];f.signalSources=[];f.contracts=[];});
+  s.firms.forEach((f,side)=>f.units.filter(u=>u.id==='specialist').forEach(u=>{
+    const qty=3*unitGrade(u),premium=qty*1.6,source={id:u.id,uid:u.uid??null};
+    f.cash-=premium;f.contracts.push({source,qty,premium,strike:100,asset:0});
+    f.unitLedger[u.uid??u.id]={source,cash:-premium,inv:ASSETS.map(()=>0),optionNet:-premium};
+    s.events.push({type:'option_open',firm:side,asset:0,source,premium,qty});
+  }));stampEvents(s);
   setupBooks(s,ASSETS);
   s.active=ASSETS.map((_,a)=>a<(options.activeMarkets??ASSETS.length));
   s.firms.forEach((f,i)=>{f.autopilot=options.autopilot?.[i]??i===1;f.enabled=f.enabled.map((v,a)=>v&&s.active[a]);});
@@ -39,7 +48,12 @@ export function portfolioRisk(f,prices,conditions=SCENARIOS.calm) {
     const jumpVariance=(jumpWidth*ASSETS[a].vol/.24)**2/12/19;
     independentVariance+=q*q*(idioVariance+jumpVariance);
   });
-  return {sigma1s:Math.sqrt(2*(commonExposure**2*commonVariance+independentVariance)),gross,commonExposure};
+  const observationVariance=f.inv.reduce((n,q)=>n+q*q*2*.08**2/12,0);
+  return {sigma1s:Math.sqrt(2*(commonExposure**2*commonVariance+independentVariance)+observationVariance),gross,commonExposure,net:f.inv.reduce((n,q,a)=>n+q*prices[a],0),concentration:gross?Math.max(...f.inv.map((q,a)=>Math.abs(q*prices[a])))/gross:0};
+}
+export function covariance1s(conditions=SCENARIOS.calm){
+  const common=2*(.24*conditions.volatility)**2/12,jump=conditions===SCENARIOS.shock?2.4:1;
+  return ASSETS.map((a,i)=>ASSETS.map((b,j)=>a.beta*b.beta*common+(i===j?2*((2*a.vol*conditions.volatility)**2/12+(jump*a.vol/.24)**2/12/19)+2*.08**2/12:0)));
 }
 function mark(f, prices,conditions=SCENARIOS.calm) {
   f.pnl = prices.map((p, a) => f.realized[a] + f.inv[a] * (p - f.basis[a]));
@@ -59,6 +73,12 @@ export function trade(f, asset, qty, price, fee = 0, source = null) {
   f.cash -= qty * price + fee; f.fees += fee; f.inv[asset] = next;
   const key=source?(source.uid??source.id):'house';
   const account=f.unitLedger[key]??={source,cash:0,inv:ASSETS.map(()=>0)};
+  account.basis??=ASSETS.map(()=>0);account.realized??=ASSETS.map(()=>0);account.fees??=0;
+  const oldUnit=account.inv[asset],nextUnit=oldUnit+qty;
+  if(oldUnit&&Math.sign(oldUnit)!==Math.sign(qty))account.realized[asset]+=Math.min(Math.abs(oldUnit),Math.abs(qty))*(price-account.basis[asset])*Math.sign(oldUnit);
+  if(!oldUnit||Math.sign(oldUnit)===Math.sign(qty))account.basis[asset]=(Math.abs(oldUnit)*account.basis[asset]+Math.abs(qty)*price)/Math.abs(nextUnit);
+  else if(nextUnit&&Math.sign(nextUnit)!==Math.sign(oldUnit))account.basis[asset]=price;
+  if(!nextUnit)account.basis[asset]=0;account.fees+=fee;
   account.cash-=qty*price+fee;account.inv[asset]+=qty;
 }
 export function route(s, asset, side, quantity, limit = side==='buy'?s.prices[asset]+ASSETS[asset].customerWidth:s.prices[asset]-ASSETS[asset].customerWidth) {
@@ -79,22 +99,23 @@ export function hedge(s, index, full = false, limit = s.firms[index].config.hedg
       const before=Math.abs(q), qty=Math.abs(cut), cost=qty*(slippage+.01);
       // External inventory changes invalidate the capacity reserved by resting orders.
       cancelFirmOrders(s,index,a);f.quotes=[];
-      let remaining=qty;
+      let remaining=qty;const affected=[];
       // Close the positions of the units that actually hold the exposure.
       for(const account of Object.values(f.unitLedger)) {
         if(Math.sign(account.inv[a])!==Math.sign(cut))continue;
         const part=Math.min(remaining,Math.abs(account.inv[a]));if(!part)continue;
         trade(f,a,-Math.sign(cut)*part,s.prices[a]-Math.sign(cut)*slippage,part*.01,account.source);
+        affected.push({source:account.source,qty:part});account.hedgeCost=(account.hedgeCost||0)+part*(slippage+.01);
         remaining-=part;if(remaining<1e-9)break;
       }
       const source=eventType==='hedge'?(defender?{id:defender.id,uid:defender.uid??null}:f.config.sources.hedge??null):null;
       const activity=source?f.activity[source.uid??source.id]:null;if(activity){activity.hedged+=qty;activity.cost+=cost;}
-      s.events.push({ type:eventType, firm:index, asset:a, qty, before, after:Math.abs(f.inv[a]), cost, source, trait:eventType==='rebalance'?'Asset Management':null });
+      s.events.push({ type:eventType, firm:index, asset:a, qty, before, after:Math.abs(f.inv[a]), cost, source, affected, trait:eventType==='rebalance'?'Asset Management':null });
     }
   });
   mark(f, s.prices,s.conditions);
 }
-export function command(s, action, asset = null) {
+function doCommand(s, action, asset = null) {
   if (s.done) return false;
   const f = s.firms[0];
   if(action==='market') {
@@ -108,17 +129,27 @@ export function command(s, action, asset = null) {
   if (action === 'hedge' && f.cards.includes('hedge')) { hedge(s, 0, true); f.cooldown = f.config.cooldownTicks; return true; }
   return false;
 }
+export function command(s,action,asset=null){const ok=doCommand(s,action,asset);stampEvents(s);return ok;}
 export function step(s) {
   if (s.done) return s;
   s.events = []; s.tick++; s.previous = [...s.prices];
   const regime=s.conditions;
   const direction=s.seed%2===0?1:-1;
   const common=(s.marketRandom()-.5)*.24*regime.volatility + direction*regime.drift;
-  s.prices=s.prices.map((p,a)=>{
+  s.fundamentals=s.fundamentals.map((p,a)=>{
     const shock=s.tick%19===0?(s.assetRandom[a]()-.5)*(s.scenario==='shock'?2.4:1)*ASSETS[a].vol/.24:0;
     return Math.max(5,p+common*ASSETS[a].beta+(s.assetRandom[a]()-.5)*ASSETS[a].vol*2*regime.volatility+shock);
   });
+  s.fundamentals.forEach((p,a)=>s.fundamentalHistory[a].push(p));
+  // Observable marks lag hidden value by one tick and include bounded observation noise.
+  s.prices=s.fundamentals.map((_,a)=>Math.max(5,s.fundamentalHistory[a][s.tick-1]+(s.observationRandom()-.5)*.08));
   s.prices.forEach((p, a) => s.history[a].push(p));
+  for(const pending of s.pendingSignals) {
+    const change=s.prices[pending.asset]-pending.publicPrice,correct=Math.sign(change)===Math.sign(pending.estimate-pending.publicPrice);
+    const activity=s.firms[pending.firm].activity[pending.source.uid??pending.source.id];
+    activity.signalChecked=(activity.signalChecked||0)+1;activity.signalCorrect=(activity.signalCorrect||0)+(correct?1:0);
+    s.events.push({type:'signal_result',...pending,correct,change});
+  }s.pendingSignals=[];
   // Fixed common innovations preserve comparable external scenarios across builds.
   s.measurements=ASSETS.map(()=>s.random()-.5);
   advanceBook(s,ASSETS,trade,hedge);
@@ -126,10 +157,10 @@ export function step(s) {
     if(!s.active[a])continue;
     for (let n = 0; n < ASSETS[a].flow; n++) {
       const informed = s.flowRandom() < regime.informed;
-      const side = informed ? (s.prices[a] > s.previous[a] ? 'buy' : 'sell') : (s.flowRandom() < .5 ? 'buy' : 'sell');
+      const side = informed ? (s.fundamentals[a] > s.prices[a] ? 'buy' : 'sell') : (s.flowRandom() < .5 ? 'buy' : 'sell');
       const qty=1+Math.floor(s.flowRandom()*4),budget=(.04+s.flowRandom()*ASSETS[a].customerWidth)*regime.customerScale;
       const offset=informed?-.015:budget;
-      const limit=s.prices[a]+(side==='buy'?offset:-offset);
+      const limit=(informed?s.fundamentals[a]:s.prices[a])+(side==='buy'?offset:-offset);
       const unfilled=route(s,a,side,qty,limit);
       s.firms.forEach(f=>{f.stats.requests+=qty;f.stats.unfilled+=unfilled;});
     }
@@ -144,6 +175,9 @@ export function step(s) {
   if (s.tick >= 80) {
     s.done = true;
     s.firms.forEach(f => { if (f.option) { const payoff = Math.max(0, (s.prices[0] - 100) * (f.option === 'call' ? 1 : -1)) * 12; f.cash += payoff; s.events.push({ type: 'option', firm: s.firms.indexOf(f), asset: 0, payoff }); } });
+    s.firms.forEach((f,i)=>f.contracts.forEach(c=>{const payoff=c.qty*Math.abs(s.prices[c.asset]-c.strike),account=f.unitLedger[c.source.uid??c.source.id];f.cash+=payoff;account.cash+=payoff;account.optionNet+=payoff;s.events.push({type:'option',firm:i,asset:c.asset,source:c.source,payoff,premium:c.premium});}));
+    s.events.push({type:'settlement',scores:s.firms.map(f=>equity(f,s.prices)-10000)});
   }
+  stampEvents(s);
   return s;
 }

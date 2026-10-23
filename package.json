@@ -8,14 +8,23 @@
     "test": "node --test",
     "audit:market": "node scripts/audit-market.mjs --out=docs/audits/market-audit.json",
     "check": "node --check src/engine.js && node --check src/app.js && node --check src/company.js && node --check src/roster.js && node --check src/league.js && node --check src/unit-feedback.js && node --check src/unit-view.js && node --check src/orderbook.js && node --check src/market-session.js && node --check src/catalog.js && node --check src/combat-view.js && node --check src/tooltips.js && node --check src/progression.js && node --check src/feel.js",
-    "audit:bots": "node scripts/audit-bots.mjs --out=docs/audits/bots-daily-ramp.json",
+    "audit:bots": "node scripts/audit-bots.mjs --out=docs/audits/bots-combat-overhaul.json",
     "benchmark:market": "node scripts/benchmark-market.mjs",
     "showcase": "node scripts/showcases.mjs",
-    "check:readout": "node --check src/battle-readout.js && node --check scripts/showcases.mjs"
+    "check:readout": "node --check src/battle-readout.js && node --check scripts/showcases.mjs",
+    "build:renderer": "node scripts/build-renderer.mjs",
+    "test:e2e": "playwright test",
+    "audit:compositions": "node scripts/audit-compositions.mjs",
+    "check:overhaul": "node --check src/combat-events.js && node --check src/strategies.js && node --check src/floor-pixi.js && node --check src/floor-bridge.js && node --check src/analytics.js && node --check src/floor-model.js"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@resvg/resvg-js": "^2.6.2",
+    "esbuild": "^0.28.2",
     "ffmpeg-static": "^5.3.0",
     "happy-dom": "^21.0.4"
+  },
+  "dependencies": {
+    "pixi.js": "^8.22.0"
   }
 }

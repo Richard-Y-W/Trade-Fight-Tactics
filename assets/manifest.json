@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "characters": {
+    "author": "Kenney",
+    "source": "https://kenney.nl/assets/roguelike-characters",
+    "license": "CC0-1.0",
+    "licenseFile": "kenney/characters/License.txt",
+    "file": "kenney/characters/Spritesheet/roguelikeChar_transparent.png",
+    "originalArchiveSha256": "05c4c0af7326584cfffbbb196571eb9e102981d2033e90e225c5ba8da8771284",
+    "modifications": "No raster edits; runtime 16x16 frame selection at 17px stride and nearest-neighbor scaling",
+    "usage": "Characters at role-specific procedural workstations"
+  },
+  "workstations": {
+    "author": "Trade Fight Tactics project",
+    "sourceFile": "../src/floor-pixi.js",
+    "usage": "Original procedural monitors, shields, antennae, levers, stacks, payoff curves and effect graphics"
+  },
+  "renderer": {
+    "library": "PixiJS 8.22.0",
+    "license": "MIT",
+    "licenseFile": "vendor/PixiJS-LICENSE",
+    "dependencyNotices": "vendor/THIRD-PARTY-LICENSES.txt",
+    "bundle": "vendor/floor-pixi.js"
+  }
+}

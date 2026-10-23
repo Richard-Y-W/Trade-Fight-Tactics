@@ -4,7 +4,7 @@ export const SENIORITY = ['Entry', 'Mid', 'Lead', 'PM', 'Firm Owner'];
 export const UNIT_PROFILES = {
   maker: { simple:'Posts buy and sell offers. Tries to earn the gap between them.', risk:'Can lose when prices move before its offers update.', tags:['Automatic','Quotes'], watch:'Two tickets appear when offers refresh; a ticket pulses when an order fills.' },
   manual: { simple:'Uses Press to send immediate orders at tight price limits.', risk:'More fills can build unwanted exposure faster.', tags:['Active','Pressure'], watch:'A lever snaps forward when you activate Press. Fill pulses follow actual orders.' },
-  research: { simple:'Helps price your offers using a less noisy estimate.', risk:'A clearer estimate of now does not reveal the next price move.', tags:['Information','Support'], watch:'A scanning lens settles onto a price estimate when quotes are calculated.' },
+  research: { simple:'Sends imperfect estimates of underlying value to your traders.', risk:'An estimate can be wrong or arrive late. It never reveals future outcomes.', tags:['Information','Support'], watch:'Purple pulses connect research to traders using its estimates. Wrong next-move readings show stress.' },
   hedge: { simple:'Trades away excess inventory. Pays to reduce exposure.', risk:'Protection costs money and may cut a winning position.', tags:['Protection','Automatic'], watch:'A shield pulses and an exposure bar shrinks only when inventory is actually reduced.' },
   sizing: { simple:'Places larger offers and lets your desk hold more inventory.', risk:'A larger capacity also leaves room for larger losses.', tags:['Capacity','Exposure'], watch:'Stacks of order tickets expand when the desk publishes larger offers.' },
   execution: { simple:'Reprices quickly and competes to fill first.', risk:'Speed cannot make a bad trading view correct.', tags:['Speed','Automatic'], watch:'Fast routing lights flash on real quote updates, rather than on a timer.' },
@@ -64,6 +64,11 @@ export const CARDS = [
 ];
 const roles={maker:['Liquidity carry','Earn spread through resting buy/sell orders.','Stale orders can be picked off.'],manual:['Active carry','Use Press to take available prices with tightly limited immediate orders.','A wrong view or an empty book wastes the window.'],research:['Information support','Contribute cleaner estimates to the trading units.','Information cannot supply missing liquidity.'],hedge:['Protector','Close actual excess positions and visibly reduce inventory.','Protection spends money and may cut winners.'],sizing:['Liquidity anchor','Add a second price level and larger inventory capacity.','Deeper orders tie up risk capacity and may fill during shocks.'],execution:['Execution carry','Cancel and replace its own orders quickly.','Cancelling loses queue position; speed still pays overhead.']};
 for(const c of CARDS){const [role,job,counter]=roles[c.capability];c.combatRole=role;c.job=job;c.counter=counter;c.detail=c.desc;}
+// Preserve identities and pool counts while differentiating representative policies.
+const refinements={broker:['Momentum Trader','Follows recent moves with slower, directional offers. Reversals hurt.'], 'value-clerk':['Mean Reversion Apprentice','Leans toward a trailing price average. Sustained trends can defeat it.'],clerk:['Risk Analyst','Blocks new position-increasing quotes above 18 units. Unlocks paid emergency trimming.'], 'agency-lead':['Relative Value Lead','Quotes Technology and Energy against their normalized price gap. Legs fill independently; relationships can fail.'],specialist:['Volatility PM','Buys a short-lived NOVA straddle: pays both premiums and settles on the absolute closing move.']};
+for(const [id,[name,desc]] of Object.entries(refinements)){const c=CARDS.find(c=>c.id===id);Object.assign(c,{name,desc,detail:desc,simple:desc});}
+Object.assign(CARDS.find(c=>c.id==='specialist'),{combatRole:'Volatility carry',job:'Pays for an expiry-only straddle; no passive quotes.',watch:'Premium appears as a cost, then both-sided payoff settles at the bell.',risk:'A small closing move loses the paid premium.'});
+Object.assign(CARDS.find(c=>c.id==='clerk'),{combatRole:'Inventory guard',job:'Stops additional position-increasing offers above 18 units.',watch:'A guard warning highlights the constrained trader. Emergency trimming is still manual.',risk:'Blocking quotes can miss profitable trades; positions remain exposed.'});
 export const byId = id => CARDS.find(c => c.id === id);
 export function unitGrade(unit) { const c=byId(unit.id);return 1+((c?.tier||1)-1)*.12+((unit.star||1)-1)*.25; }
 export function starBenefit(id) { return ({maker:'Larger offers and lower execution costs.',manual:'Larger orders and longer Press windows.',research:'Cleaner estimates for every trading unit.',hedge:'Lower slippage when reducing actual positions.',sizing:'Deeper size and more firm inventory capacity.',execution:'Larger orders and earlier submission.'})[byId(id)?.capability]||''; }
@@ -82,7 +87,8 @@ export function buildConfig(units) {
     const c=byId(u.id); if(!c)continue;
     const grade=unitGrade(u);
     if(c.capability==='research')researchPower+=grade*grade;
-    if(grade>(caps[c.capability]||0)) { caps[c.capability]=grade; sources[c.capability]={id:c.id,uid:u.uid??null}; }
+    const capability=c.id==='specialist'?'volatility':c.capability;
+    if(grade>(caps[capability]||0)) { caps[capability]=grade; sources[capability]={id:c.id,uid:u.uid??null}; }
   }
   const level=t=>traitLevel(counts[t]||0,t), hft=level('HFT'), systematic=level('Systematic'), macro=level('Macro'), am=level('Asset Management');
   const speed=Math.max(caps.execution||0,caps.maker||0), capabilities=Object.keys(caps);

@@ -1,0 +1,7 @@
+{
+  "scope": "Real-time headless Edge browser, full UI and Pixi; requestAnimationFrame intervals, not GPU timings. One 40-second seeded opening session; screenshot overhead included. Machine-specific, not an FPS guarantee.",
+  "samples": 2978,
+  "meanMs": 13.530826057757114,
+  "p95Ms": 13.400000000001455,
+  "p99Ms": 13.600000000000136
+}

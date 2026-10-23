@@ -9,7 +9,7 @@ export function paintUnitActivity(state,root=document) {
       const target=el.querySelector('.unit-metrics');if(!target)continue;
       const a=f.activity[key],c=byId(u.id),ledger=f.unitLedger[key];if(!a)continue;
       if(c.capability==='research')target.textContent=`${a.signals} estimates`;
-      else if(c.capability==='hedge')target.textContent=`${a.hedged} trimmed · $${a.cost.toFixed(2)} cost`;
+      else if(c.capability==='hedge')target.textContent=u.id==='clerk'?`${a.guarded||0} quote guards · ${a.hedged} emergency trim`:`${a.hedged} trimmed · $${a.cost.toFixed(2)} cost`;
       else {
         const pnl=ledger?ledger.cash+ledger.inv.reduce((n,q,i)=>n+q*state.prices[i],0):0;
         target.textContent=`Net ${pnl<0?'−':'+'}$${Math.abs(pnl).toFixed(2)} · ${a.fills} filled`;

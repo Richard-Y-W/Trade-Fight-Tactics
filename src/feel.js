@@ -16,7 +16,8 @@ export function createMarketFeel(doc,icon) {
     tick(s){
       if(s.tick===lastTick)return {chain:0,positive:false};lastTick=s.tick;
       const changes=markedChanges(s,before),next=snapshot(s),netGain=before?next[0].equity-before[0].equity:0;before=next;
-      for(const e of changes.slice(0,2)) {
+      const reduced=doc.getElementById('reduce-effects')?.checked||doc.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      for(const e of (reduced?[]:changes.slice(0,2))) {
         const tile=doc.querySelector(`[data-asset="${e.asset}"]`);if(!tile)continue;
         const burst=doc.createElement('span');burst.className=`pnl-burst side-${e.side} ${e.delta>0?'gain':'loss'}`;
         burst.dataset.amount=String(e.delta);burst.innerHTML=`<small>MARKED Δ</small><b>${cash(e.delta)}</b>`;burst.title='Change in marked inventory P&L this tick, before firm-wide costs. This can include unrealized gains or losses.';
@@ -32,7 +33,7 @@ export function createMarketFeel(doc,icon) {
       if(clash) {
         const sourceKey=x=>x.uid==null?`[data-unit-id="${x.id}"]`:`[data-instance="${x.uid}"]`;
         const winner=doc.querySelector(`${clash.firm?'#opponent-floor':'#desk'} ${sourceKey(clash.source)}`),loser=doc.querySelector(`${clash.firm?'#desk':'#opponent-floor'} ${sourceKey(clash.opponent)}`);
-        if(winner&&loser) {
+        if(winner&&loser&&!reduced&&doc.getElementById('combat-floor')?.dataset.renderer!=='pixi') {
           const a=winner.getBoundingClientRect(),b=loser.getBoundingClientRect(),svg=doc.createElementNS('http://www.w3.org/2000/svg','svg');
           svg.setAttribute('class',`unit-clash side-${clash.firm}`);svg.setAttribute('aria-hidden','true');
           svg.innerHTML=`<path d="M${a.x+a.width/2},${a.y+a.height/2} Q${(a.x+b.x)/2+60},${(a.y+b.y)/2} ${b.x+b.width/2},${b.y+b.height/2}"/><circle cx="${b.x+b.width/2}" cy="${b.y+b.height/2}" r="16"/>`;

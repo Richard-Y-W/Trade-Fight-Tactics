@@ -13,12 +13,17 @@
         <div class="clock"><span id="clock-label">OPEN IN</span><strong id="timer">0:40</strong><span id="duel-label">GREEN VS BLUE</span><button id="pause" class="quiet" hidden>Pause</button></div>
         <div class="firm rival"><div class="firm-label"><span id="rival-health" class="health">100 HP</span> RIVAL FIRM <span class="owner-dot"></span></div><div class="firm-name"><span>↙</span> Cobalt Partners</div><div id="rival-score" class="big-score">+$0.00</div><div class="score-caption"><span id="rival-flow">0 fills</span> NET DAY P&L</div></div>
       </div>
+      <div class="floor-toolbar"><span>THE TRADING FLOOR <small>Signals → orders → exposure → result</small></span><label><input id="reduce-effects" type="checkbox"> Less motion</label><label>Volume <input id="volume" type="range" min="0" max="1" step=".05" value=".5" aria-label="Sound volume"></label></div>
+      <div id="combat-floor" class="combat-floor" data-renderer="loading">Your deployed units will appear here. Unit cards below remain available for keyboard inspection.</div>
       <div class="market-heading"><span><span class="live-dot"></span> THE SHARED MARKET</span><span class="legend"><i class="green"></i> MINT <i class="blue"></i> COBALT <span class="muted">/ SELECT A MARKET</span></span></div>
       <div class="battle-stage"><div class="market-map" id="market-map"></div><section id="day-result" class="day-result" aria-live="polite" hidden><div id="confetti" aria-hidden="true"></div><span class="eyebrow">CLOSING BELL</span><h2 id="recap-title"></h2><p id="recap-subtitle"></p><div id="recap-stats"></div><button id="next" class="primary">NEXT DAY <span>→</span></button><details><summary>Day breakdown</summary><div id="recap-breakdown"></div></details></section></div>
       <div class="market-footer"><div id="ticker"><span class="muted">OPENING OUTLOOK</span> Liquidity is returning. Direction is uncertain.</div><span class="sim-tag">SIMULATED MARKET</span></div>
       <div class="desk-heading"><div><span class="eyebrow">TRADING FLOOR</span><span id="build-traits" class="build-traits">BASIC QUOTING</span></div><button id="build-guide" class="quiet">Build guide ?</button><span id="slots-label">0 / 3 DEPLOYED</span></div>
       <div id="traits" class="trait-list"></div><details class="trait-benefit-panel"><summary>Active benefits &amp; next thresholds</summary><div id="trait-benefits"></div></details><div class="desk" id="desk"></div>
       <section id="battle-readout" class="battle-readout" aria-label="Battle explanation"></section>
+      <div id="build-summary" class="build-summary" aria-label="Build strengths and cautions"></div>
+      <section id="closing-highlights" class="closing-highlights" aria-label="Closing performance highlights"></section>
+      <details class="debug-panel"><summary>Developer state · reveals hidden value</summary><pre id="debug-state"></pre></details>
     <section class="terminal">
       <div class="terminal-heading"><span class="terminal-glyph">⌘</span><div><span class="eyebrow">CONTROL TERMINAL</span><h2>Your build. Your buttons.</h2></div><span class="connection">●</span></div>
       <div class="automation"><div><span>AUTONOMY</span><strong id="autonomy">20<span>%</span></strong></div><div class="segments" id="automation-meter"></div><p id="autonomy-caption">You set the tone. Your desk handles the fills.</p></div>

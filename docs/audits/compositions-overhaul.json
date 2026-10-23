@@ -1,0 +1,290 @@
+{
+  "method": "30 common seeds, both seats, identical opportunity-gated autonomous controls, all five markets; each roster versus the same liquidity benchmark. All rosters cost six credits, but use three or four slots. No shop progression or player skill. Descriptive paired diagnostics, not confidence intervals or causal unit ablations.",
+  "duels": 1080,
+  "rows": [
+    {
+      "composition": "liquidity",
+      "regime": "calm",
+      "cost": 6,
+      "slots": 4,
+      "runs": 60,
+      "winPct": 50,
+      "meanPnL": 43.9360687532146,
+      "p05PnL": 31.13285895932131,
+      "meanDrawdown": 3.6155349853116907,
+      "meanFees": 2.091014685151875,
+      "meanClosingGross": 1245.812949623558
+    },
+    {
+      "composition": "fast",
+      "regime": "calm",
+      "cost": 6,
+      "slots": 3,
+      "runs": 60,
+      "winPct": 56.666666666666664,
+      "meanPnL": 48.56125625945357,
+      "p05PnL": 33.727566711084364,
+      "meanDrawdown": 4.276121919416922,
+      "meanFees": 3.3739873948206935,
+      "meanClosingGross": 1790.4154369990506
+    },
+    {
+      "composition": "momentum",
+      "regime": "calm",
+      "cost": 6,
+      "slots": 3,
+      "runs": 60,
+      "winPct": 3.3333333333333335,
+      "meanPnL": 19.637210438655863,
+      "p05PnL": 5.69634759481778,
+      "meanDrawdown": 7.806597786584583,
+      "meanFees": 2.637666666666661,
+      "meanClosingGross": 2242.619899446637
+    },
+    {
+      "composition": "reversion",
+      "regime": "calm",
+      "cost": 6,
+      "slots": 3,
+      "runs": 60,
+      "winPct": 93.33333333333333,
+      "meanPnL": 49.91591301854666,
+      "p05PnL": 34.693835864392895,
+      "meanDrawdown": 6.194007107377456,
+      "meanFees": 4.555666666666637,
+      "meanClosingGross": 2191.5952849529817
+    },
+    {
+      "composition": "relative",
+      "regime": "calm",
+      "cost": 6,
+      "slots": 3,
+      "runs": 60,
+      "winPct": 100,
+      "meanPnL": 51.78713370539062,
+      "p05PnL": 33.3053804786141,
+      "meanDrawdown": 3.8165744591540713,
+      "meanFees": 4.849533333333317,
+      "meanClosingGross": 1674.1821850272552
+    },
+    {
+      "composition": "volatility",
+      "regime": "calm",
+      "cost": 6,
+      "slots": 3,
+      "runs": 60,
+      "winPct": 0,
+      "meanPnL": 30.330298484369298,
+      "p05PnL": 21.5532279733834,
+      "meanDrawdown": 2.319074477956474,
+      "meanFees": 1.4330624999999981,
+      "meanClosingGross": 968.0741385715846
+    },
+    {
+      "composition": "liquidity",
+      "regime": "trend",
+      "cost": 6,
+      "slots": 4,
+      "runs": 60,
+      "winPct": 50,
+      "meanPnL": -9.885895499178606,
+      "p05PnL": -48.05035136010156,
+      "meanDrawdown": 24.66416466105223,
+      "meanFees": 2.3112345548129314,
+      "meanClosingGross": 1201.599894734212
+    },
+    {
+      "composition": "fast",
+      "regime": "trend",
+      "cost": 6,
+      "slots": 3,
+      "runs": 60,
+      "winPct": 100,
+      "meanPnL": 109.17152427850039,
+      "p05PnL": 68.38191783674483,
+      "meanDrawdown": 4.827386329156252,
+      "meanFees": 3.0643179199095383,
+      "meanClosingGross": 2576.6455563041495
+    },
+    {
+      "composition": "momentum",
+      "regime": "trend",
+      "cost": 6,
+      "slots": 3,
+      "runs": 60,
+      "winPct": 100,
+      "meanPnL": 193.44040695266781,
+      "p05PnL": 109.54616403534237,
+      "meanDrawdown": 11.001111355566325,
+      "meanFees": 3.3089999999999904,
+      "meanClosingGross": 5003.83173002781
+    },
+    {
+      "composition": "reversion",
+      "regime": "trend",
+      "cost": 6,
+      "slots": 3,
+      "runs": 60,
+      "winPct": 11.666666666666666,
+      "meanPnL": -118.71500017133876,
+      "p05PnL": -338.31719851947673,
+      "meanDrawdown": 135.3409424030679,
+      "meanFees": 5.006333333333299,
+      "meanClosingGross": 5740.785854254237
+    },
+    {
+      "composition": "relative",
+      "regime": "trend",
+      "cost": 6,
+      "slots": 3,
+      "runs": 60,
+      "winPct": 100,
+      "meanPnL": 41.53502932986576,
+      "p05PnL": -28.56078878863991,
+      "meanDrawdown": 11.759324062001905,
+      "meanFees": 5.427958333333306,
+      "meanClosingGross": 1960.3156780975323
+    },
+    {
+      "composition": "volatility",
+      "regime": "trend",
+      "cost": 6,
+      "slots": 3,
+      "runs": 60,
+      "winPct": 80,
+      "meanPnL": 12.760484210987913,
+      "p05PnL": -9.48471218854138,
+      "meanDrawdown": 16.246158257070572,
+      "meanFees": 1.3693749999999987,
+      "meanClosingGross": 835.8594296015614
+    },
+    {
+      "composition": "liquidity",
+      "regime": "shock",
+      "cost": 6,
+      "slots": 4,
+      "runs": 60,
+      "winPct": 50,
+      "meanPnL": -49.80850141779659,
+      "p05PnL": -102.16043252728377,
+      "meanDrawdown": 63.44592075912212,
+      "meanFees": 3.2880299742838326,
+      "meanClosingGross": 1809.711109303495
+    },
+    {
+      "composition": "fast",
+      "regime": "shock",
+      "cost": 6,
+      "slots": 3,
+      "runs": 60,
+      "winPct": 100,
+      "meanPnL": 17.403954535329284,
+      "p05PnL": -21.729994423425524,
+      "meanDrawdown": 20.647008654235286,
+      "meanFees": 2.2679180765058375,
+      "meanClosingGross": 1975.604166898752
+    },
+    {
+      "composition": "momentum",
+      "regime": "shock",
+      "cost": 6,
+      "slots": 3,
+      "runs": 60,
+      "winPct": 100,
+      "meanPnL": 39.82226570017168,
+      "p05PnL": -9.17294318448694,
+      "meanDrawdown": 23.35275995205617,
+      "meanFees": 3.2755833333333273,
+      "meanClosingGross": 2878.860989291775
+    },
+    {
+      "composition": "reversion",
+      "regime": "shock",
+      "cost": 6,
+      "slots": 3,
+      "runs": 60,
+      "winPct": 100,
+      "meanPnL": -2.972674869029561,
+      "p05PnL": -71.9031369428576,
+      "meanDrawdown": 59.50967563127669,
+      "meanFees": 3.8966666666666514,
+      "meanClosingGross": 4324.5529764236135
+    },
+    {
+      "composition": "relative",
+      "regime": "shock",
+      "cost": 6,
+      "slots": 3,
+      "runs": 60,
+      "winPct": 100,
+      "meanPnL": 18.72906750380886,
+      "p05PnL": -75.16604885709603,
+      "meanDrawdown": 35.67994283350581,
+      "meanFees": 5.7438749999999725,
+      "meanClosingGross": 2159.055132097786
+    },
+    {
+      "composition": "volatility",
+      "regime": "shock",
+      "cost": 6,
+      "slots": 3,
+      "runs": 60,
+      "winPct": 100,
+      "meanPnL": -0.5748095116478301,
+      "p05PnL": -35.53098690440129,
+      "meanDrawdown": 23.006114264521877,
+      "meanFees": 1.7255624999999966,
+      "meanClosingGross": 1343.9814081936738
+    }
+  ],
+  "unitOrderStreams": {
+    "router": {
+      "samples": 180,
+      "meanPnL": -13.84734374772097
+    },
+    "maker": {
+      "samples": 540,
+      "meanPnL": -1.9521715601824428
+    },
+    "sizing": {
+      "samples": 180,
+      "meanPnL": 31.073102533264446
+    },
+    "liquidity": {
+      "samples": 180,
+      "meanPnL": 50.33679330950892
+    },
+    "manual": {
+      "samples": 180,
+      "meanPnL": 4.944316411489328
+    },
+    "broker": {
+      "samples": 180,
+      "meanPnL": 79.35564461900876
+    },
+    "value-clerk": {
+      "samples": 180,
+      "meanPnL": -196.2390737093261
+    },
+    "value-lead": {
+      "samples": 180,
+      "meanPnL": 172.31515303538467
+    },
+    "agency-clerk": {
+      "samples": 180,
+      "meanPnL": -0.30430749676892
+    },
+    "agency-lead": {
+      "samples": 180,
+      "meanPnL": -26.597828740620724
+    },
+    "agency-trader": {
+      "samples": 180,
+      "meanPnL": 64.25254641707353
+    },
+    "specialist": {
+      "samples": 180,
+      "meanPnL": 5.592089283413908
+    }
+  }
+}

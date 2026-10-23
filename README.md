@@ -1,4 +1,4 @@
-﻿# Trade Fight Tactics
+# Trade Fight Tactics
 
 **Build a trading firm. Find your edge. Survive the closing bell.**
 
@@ -9,6 +9,12 @@ Forty seconds. One shared market. Your quotes, your inventory, your consequences
 > Local mechanics prototype. Trade Fight Tactics is the internal working title; the public-release name will change. This is a finance-inspired strategy game, not a calibrated trading simulator.
 
 ## Watch a trading day
+
+[![Actual browser combat: pixel-art trading floor](docs/media/ui-battle-viewport.png)](docs/media/browser-battle.webm)
+
+**[Watch the actual browser battle (WebM)](docs/media/browser-battle.webm)** — a real 40-second game session captured in headless Edge, including preparation and the closing bell. No accelerated simulation clock. Kenney CC0 characters and original workstations render through PixiJS v8. [Art and dependency licenses](docs/assets-and-licenses.md).
+
+The clips below are separately labeled **offline engine visualizations**:
 
 [![Monday: two desks compete for real shared order flow](docs/media/opening-bell.gif)](https://github.com/Richard-Y-W/Trade-Fight-Tactics/blob/main/docs/media/opening-bell.mp4)
 
@@ -51,9 +57,9 @@ The shop's rarity odds advance each day. Save credits for capped interest, rerol
 
 Both. Seeded market moves and customer flow create uncertainty, while quoting, FIFO position, information quality, inventory and fees determine cash flows. The score is net marked-to-market P&L after costs, not a random combat roll. Winning more fills does not guarantee winning money.
 
-The accounting and matching foundation is ready for prototype playtests. The model and balance still need work: prices are exogenous, research estimates the current mark rather than predicting hidden value, and the roster shares six behavior families. There is no calibrated market impact, financing, borrow, margin liquidation or intraday option valuation.
+The accounting and matching foundation is ready for prototype playtests. Public prices now lag a separate hidden reference process; research supplies imperfect, sometimes delayed observations, and bots trade from delivered beliefs and public history. Existing identities now include momentum, mean reversion, relative-value legs, inventory guarding and an expiry straddle. Many other identities deliberately retain family policies. There is no calibrated market impact, financing, borrow, margin liquidation or intraday option valuation.
 
-The existing actual-bot audit covers **1,750 duels**. Early sessions are usually profitable in these authored scenarios; Friday is deliberately harsher, with only **45%** of firm results positive. The simulation-only benchmark averages **1.084ms per four-duel tick**, excluding rendering, against a 500ms tick budget. Neither result establishes market realism or competitive balance. [Read the candid simulation assessment and explanation math](docs/WATCHABILITY-AND-SIMULATION.md).
+The updated actual-bot audit covers **1,750 duels**; Friday has **46.7%** positive firm results. A further **1,080 seat-swapped composition duels** use common seeds and identical autonomous controls. These expose substantial imbalance, including severe mean-reversion losses in directional sessions. The updated simulation-only benchmark averages **1.17ms per four-duel tick**, excluding rendering, against a 500ms tick budget. These are diagnostics, not evidence of calibrated realism or release-ready balance. [Current model and accounting](docs/financial-model.md), [implementation results](docs/implementation-results.md).
 
 ## Develop and verify
 
@@ -62,12 +68,17 @@ npm ci
 npm test
 npm run check
 npm run check:readout
+npm run check:overhaul
+npm run build:renderer
+npx playwright install ffmpeg
+npm run test:e2e
 npm run audit:bots
+npm run audit:compositions
 npm run benchmark:market
 npm run showcase
 ```
 
-The browser game uses plain JavaScript, HTML, CSS and custom SVG visuals. The DOM-free simulation can run tests, seeded audits and replays without the UI. Happy DOM supplies automated UI tests; the offline showcase generator uses resvg and FFmpeg. No production engine decision or C++ requirement has been established.
+The browser game uses plain JavaScript, HTML/CSS menus, PixiJS v8 combat and accessible SVG/CSS fallback scenes. The committed renderer bundle supports local play without installation; rebuild it after changing canvas code. Headless simulation remains DOM-free. Happy DOM supplies logic/UI tests; Playwright uses an installed Microsoft Edge for browser checks and screenshots. The offline showcase generator uses resvg and FFmpeg. No C++ requirement has been established.
 
 | Area | Entry point |
 | --- | --- |
@@ -77,7 +88,7 @@ The browser game uses plain JavaScript, HTML, CSS and custom SVG visuals. The DO
 | UI and battle explanations | [app.js](src/app.js), [battle-readout.js](src/battle-readout.js) |
 | Reproducible showcases | [showcases.mjs](scripts/showcases.mjs) |
 
-52 automated tests cover accounting, supply conservation, queues, upgrades, daily unlocks, controls, attribution and a full-week UI journey. Syntax checks pass. Real-browser layout and animation QA remain outstanding; offline replay posters are visually inspected and generated MP4s are decoded for validation.
+60 automated Node tests cover accounting, supply conservation, queues, upgrades, daily unlocks, controls, attribution, option expiry, information boundaries, covariance and a full-week UI journey. Browser checks cover Pixi startup, a full week/weekend, inspection, resizing, reduced effects and missing-character fallback. A separate real-time browser test records combat and measures frame intervals. Screenshots and audit artifacts live under `docs/media/` and `docs/audits/`. Human beginner comprehension remains untested; the [readability protocol](docs/playtest-readability.md) is a release gate.
 
 ## What's next
 
@@ -92,6 +103,12 @@ Online multiplayer, an authoritative server, live spectating, persistent saves, 
 - [Current fast-beta pacing and audit](docs/FAST-BETA-PACING.md)
 - [Order books and combat roles](docs/ORDERBOOK-AND-COMBAT.md)
 - [Watchability and simulation assessment](docs/WATCHABILITY-AND-SIMULATION.md)
+- [Combat overhaul assessment and priorities](docs/combat-overhaul-plan.md)
+- [Unit behavior matrix](docs/unit-behavior-matrix.md)
+- [Current financial model](docs/financial-model.md)
+- [Visual design system](docs/visual-design-system.md)
+- [Assets and licenses](docs/assets-and-licenses.md)
+- [Implementation results and remaining work](docs/implementation-results.md)
 - [Trait research and unit design](docs/TRAIT-RESEARCH.md)
 - [Economy, interest and rivalry](docs/ECONOMY-AND-RIVALRY.md)
 - [Visual learning principles](docs/VISUAL-LEARNING.md)

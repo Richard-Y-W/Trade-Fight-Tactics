@@ -1,4 +1,6 @@
 import { createBattleReadout } from './battle-readout.js';
+import { createCombatFloor } from './floor-bridge.js';
+import { closingAnalysis,buildSummary } from './analytics.js';
 import { createMarketFeel } from './feel.js';
 import { progression } from './progression.js';
 import { initializeTooltips } from './tooltips.js';
@@ -22,6 +24,7 @@ const icons = {
 const icon = name => `<svg class="unit-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.grid}</svg>`;
 const marketFeel=createMarketFeel(document,icon);
 const battleReadout=createBattleReadout(document);
+const combatFloor=createCombatFloor(document);
 let matchSeed=Date.now()>>>0;
 let company=createCompany(matchSeed),lobby=makeLobby(company.pool,company,matchSeed),otherMatches=[],inspectPlayer='cobalt',selectedUnit=null;
 let cards = [], day = 1, week = 1, health = [100, 100], phase = 'prep', selected = 0;
@@ -35,7 +38,7 @@ function beep(pitch = 440, length = .06) {
   if (!sound || !audio) return;
   const oscillator = audio.createOscillator(), gain = audio.createGain();
   oscillator.type = 'sine'; oscillator.frequency.setValueAtTime(pitch, audio.currentTime);
-  gain.gain.setValueAtTime(.025, audio.currentTime); gain.gain.exponentialRampToValueAtTime(.001, audio.currentTime + length);
+  gain.gain.setValueAtTime(Math.max(.0001,.05*Number($('volume')?.value??.5)), audio.currentTime); gain.gain.exponentialRampToValueAtTime(.0001, audio.currentTime + length);
   oscillator.connect(gain); gain.connect(audio.destination); oscillator.start(); oscillator.stop(audio.currentTime + length);
 }
 function animate(el, name) { el.classList.remove(name); void el.offsetWidth; el.classList.add(name); }
@@ -186,7 +189,8 @@ function paintNumbers() {
   $('risk-sigma').textContent=`$${risk.sigma1s.toFixed(2)}`;$('risk-gross').textContent=`$${risk.gross.toFixed(0)}`;
   $('positions').innerHTML = ASSETS.map((a, i) => `<div class="position" ${state.active[i]?'':'hidden'}>${a.ticker}<b>${f.inv[i] >= 0 ? '+' : ''}${f.inv[i]}</b></div>`).join('');
   const remaining = Math.max(0, 40 - state.tick / 2); $('timer').textContent = `0:${String(Math.ceil(remaining)).padStart(2, '0')}`; $('timer').classList.toggle('urgent', phase === 'live' && remaining < 10);
-  paintFocus();paintUnitActivity(state);battleReadout.paint(state);
+  paintFocus();paintUnitActivity(state);battleReadout.paint(state);combatFloor.paint(state);
+  const summary=buildSummary(state);$('build-summary').innerHTML=[...summary.strengths.map(s=>`<span>${s}</span>`),...summary.weaknesses.map(s=>`<span class="build-caution">${s}</span>`)].join('');
 }
 function paintLobby() {
   lobby[0].health = health[0]; lobby[1].health = health[1];
@@ -214,6 +218,7 @@ function paintOpponent() {
   $('opponent-traits').textContent=Object.entries(counts).filter(([name,n])=>traitLevel(n,name)>0).map(([name,n])=>`${name} ${n}: ${TRAITS[name].effects[traitLevel(n,name)-1]}`).join(' · ')||'No active thresholds';
 }
 function paintPrep() {
+  $('closing-highlights').replaceChildren();
   paintWeek(); paintDesk(); paintShop(); paintControls(); paintNumbers(); paintLobby();paintOpponent();
   $('day-result').hidden = true;
   $('rival-build').textContent=botUnits(lobby[1],week).map(u=>byId(u.id).name).join(' / ');
@@ -248,7 +253,7 @@ function tick() {
   }
   const feel=marketFeel.tick(state);
   if(feel.positive&&state.tick%3===0)beep(440+Math.min(6,feel.chain)*55,.055);
-  showUnitFeedback(state.events,icon);showMarketActions(state.events,icon);paintContests(state.events,icon);
+  showUnitFeedback(state.events,icon);if(!combatFloor.ready)showMarketActions(state.events,icon);paintContests(state.events,icon);
   const shock = state.prices.findIndex((p, a) => Math.abs(p - state.previous[a]) > .35);
   if (shock >= 0) { pop(shock, `${ASSETS[shock].ticker} ${state.prices[shock] > state.previous[shock] ? '↑' : '↓'}`, 0, true); beep(180, .09); }
   const [f, r] = state.firms, leader = f.pnl.indexOf(Math.max(...f.pnl));
@@ -266,6 +271,9 @@ function closeDay() {
   const nextIncome=incomeFor(company.credits);
   $('recap-subtitle').textContent = damage ? `${gap > 0 ? 'Cobalt' : 'Mint'} −${damage} HP · +${nextIncome.total} credits tomorrow (${nextIncome.interest} interest)` : `Evenly matched - +${nextIncome.total} credits tomorrow (${nextIncome.interest} interest)`;
   $('recap-stats').innerHTML = `<span>${money(scores[0])}</span><span>${money(scores[1])}</span>`;
+  const report=closingAnalysis(state),name=r=>r?.card.name||'None';
+  $('closing-highlights').innerHTML=`<div><small>TOP ORDER STREAM</small><b>${name(report.top)}</b><span>${money(report.top?.net||0)}</span></div><div><small>LARGEST OPEN EXPOSURE</small><b>${name(report.risk)}</b><span>$${(report.risk?.gross||0).toFixed(0)} gross</span></div><div><small>SUPPORT ACTIVITY · PROXY</small><b>${name(report.helper)}</b><span>${report.helper?.activity.hedged||0} trimmed · ${report.helper?.activity.signalChecked||0} signals assessed</span></div><div><small>LOWEST ORDER STREAM</small><b>${name(report.weak)}</b><span>${money(report.weak?.net||0)}</span></div><p>${report.advice}</p>`;
+  if(report.moment){const m=report.moment,p=document.createElement('p');p.textContent=`Largest recorded interaction: ${byId(m.source.id).name} ${m.type==='hedge'?`trimmed ${m.qty} ${ASSETS[m.asset].ticker}, paying $${m.cost.toFixed(2)}`:`won ${m.qty} ${ASSETS[m.asset].ticker} customer units on ${m.reason==='price'?'price':'queue priority'}`}. Volume is not profit.`;$('closing-highlights').append(p);}
   $('recap-breakdown').innerHTML = ASSETS.map((a, i) => `<div class="recap-row"><span>${a.ticker}</span><span>${money(state.firms[0].pnl[i])}</span><span>${money(state.firms[1].pnl[i])}</span></div>`).join('') + `<div class="recap-row"><small>Fees</small><small>−$${state.firms[0].fees.toFixed(2)}</small><small>−$${state.firms[1].fees.toFixed(2)}</small></div><div class="recap-row"><small>Inventory settled at closing marks.<br>Options settle separately in net P&L.</small></div>`;
   const ended = health.some(h => !h);
   if (ended) { $('recap-title').textContent = health[0] ? 'Mint wins the match.' : 'The firm closes its doors.'; $('recap-subtitle').textContent = 'Build a different desk and try again.'; }
@@ -308,13 +316,14 @@ function inspectUnit(id,uid,star=1) {
   $('unit-portrait').querySelector('.unit-cue').textContent='ROLE ILLUSTRATION';
   const technical={
     maker:`Quotes both sides around an estimated price, skewed by inventory. The ${owned?.deployed?'deployed desk':'unit-alone preview'} refresh interval is ${config.cadence/2}s. Fills can capture a spread or lose against changing marks.`,
-    research:`Combined current-mark estimation noise has half-width $${(config.noise/2).toFixed(3)} in this ${owned?.deployed?'desk':'unit-alone preview'}. This prototype uses a noisy reference mark, not a forecast of hidden future value.`,
+    research:`Estimates hidden underlying value with noise half-width $${(config.noise/2).toFixed(3)}. Entry researchers observe with one tick of delay; higher tiers observe current value with error. Quotes use the delivered estimate, never future values. Next-move accuracy is a proxy, not proof of causal profit.`,
     hedge:`Automatically trims inventory above ${config.hedgeThreshold} units. Per-unit hedge slippage is $${config.hedgeCost.toFixed(3)}, plus a $0.01 fee. New customer orders can rebuild exposure. It does not block trades or cancel health damage.`,
     manual:`Press uses a $0.055 half-spread for ${config.pressTicks/2}s. Its shared intervention cooldown is ${config.cooldownTicks/2}s. During Press, this unit submits immediate-or-cancel orders at its chosen limits; unmatched quantity expires.`,
     sizing:`The ${owned?.deployed?'current desk':'unit-alone preview'} can quote ${config.size} units per side in Balanced stance and hold at most ${config.capacity} units per asset. The unit places two price levels; inventory limits are enforced across the whole firm.`,
     execution:`Quote refresh interval is ${config.cadence/2}s with arrival advantage ${config.priority.toFixed(2)}. The book fills by price then FIFO; speed does not jump older orders. Repricing and filling are different events.`,
   };
-  $('unit-technical').textContent=`${technical[c.capability]} Star ${owned?.star||star}: grade ${unitGrade({id,star:owned?.star||star}).toFixed(2)}. ${starBenefit(id)} Each extra star adds 0.25 grade; profits are not guaranteed.`;
+  const policyTechnical=id==='specialist'?'Buys a NOVA straddle at the opening: quantity 3 × grade; premium $1.60 per quantity. Pays quantity × abs(close − $100) at expiry. No intraday option value. Does not submit quotes or unlock Press.':id==='clerk'?'Blocks position-increasing new offers when absolute inventory exceeds 18 units. Existing offers can still fill; emergency hedge closes positions for an explicit cost.':technical[c.capability];
+  $('unit-technical').textContent=`${policyTechnical} Star ${owned?.star||star}: grade ${unitGrade({id,star:owned?.star||star}).toFixed(2)}. ${starBenefit(id)} Each extra star adds 0.25 grade; profits are not guaranteed.`;
   $('unit-scope').textContent=`${c.combatRole}: ${c.counter} Trading units own their orders and position streams. Research and protection support the firm; their activity counters show actual estimates or exposure trimmed.`;
   $('unit-advanced').open=false; $('unit-dialog').showModal();
 }
@@ -348,3 +357,9 @@ state=createDay(deployed(company),daySeed(),undefined,null,sessionOptions());car
 initializeTooltips(document,{counts:()=>traitCounts(deployed(company)),credits:()=>company.credits});
 initializeCatalog({document,icon,onInspect:id=>inspectUnit(id),onOpen:()=>{if(phase==='live'&&!paused)$('pause').click();}});
 paintMap(); paintPrep();
+$('reduce-effects').addEventListener('change',()=>{document.body.classList.toggle('less-motion',$('reduce-effects').checked);if($('reduce-effects').checked)document.querySelectorAll('.unit-clash,.market-flight,.floating,.pnl-burst').forEach(n=>n.remove());});
+document.addEventListener('mouseover',e=>{
+  const chip=e.target.closest?.('[data-trait]');if(!chip)return;
+  for(const u of deployed(company))if(byId(u.id).traits.includes(chip.dataset.trait))document.querySelector(`#desk [data-instance="${u.uid}"]`)?.classList.add('trait-hover-partner');
+});
+document.addEventListener('mouseout',e=>{if(e.target.closest?.('[data-trait]'))document.querySelectorAll('.trait-hover-partner').forEach(n=>n.classList.remove('trait-hover-partner'));});

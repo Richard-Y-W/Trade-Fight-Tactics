@@ -1,5 +1,6 @@
 import { createBook,cancelOrders,submitOrder } from './orderbook.js';
 import { byId,traitLevel,unitGrade } from './roster.js';
+import { decisionFor,policyFor } from './strategies.js';
 
 export function setupBooks(s,assets) { s.books=assets.map(()=>createBook());s.bookMode=false; }
 export function cancelFirmOrders(s,index,asset=null) {
@@ -18,7 +19,7 @@ function hooks(s,a,trade) {
         f.fills[a]+=qty;if(direct)f.stats.crossUnits+=qty;
         const activity=stats(f,order.source);if(activity){activity.fills+=qty;if(taker)activity.taken+=qty;}
         const peer=(taker?resting:incoming);
-        s.events.push({type:'fill',firm:order.owner,asset:a,qty,price,source:order.source,opponent:peer.owner>=0?peer.source:null,taker,direct,edge:signed*(s.prices[a]-price)});
+        s.events.push({type:'fill',firm:order.owner,asset:a,qty,price,signedQty:signed,fee,source:order.source,opponent:peer.owner>=0?peer.source:null,taker,direct,edge:signed*(s.prices[a]-price)});
         if(incoming.owner===-2&&!taker&&!incoming.contestReported&&order.source) {
           const rivals=s.books[a].orders.filter(o=>o.owner>=0&&o.owner!==order.owner&&o.side===order.side&&o.source&&o.remaining>0&&(incoming.side==='buy'?o.price<=incoming.price:o.price>=incoming.price));
           rivals.sort((x,y)=>(incoming.side==='buy'?x.price-y.price:y.price-x.price)||x.sequence-y.sequence);
@@ -68,30 +69,38 @@ export function advanceBook(s,assets,trade,hedge) {
   const jobs=[];
   s.firms.forEach((f,i)=>{
     if(f.autopilot&&f.cards.includes('manual')&&!f.cooldown&&f.risk<65) {
-      const opportunity=s.books.some((book,a)=>s.active[a]&&book.orders.some(o=>o.owner!==i&&(o.side==='sell'?o.price/100<s.prices[a]-.04-f.config.fee*2:o.price/100>s.prices[a]+.04+f.config.fee*2)));
+      const opportunity=s.books.some((book,a)=>s.active[a]&&f.enabled[a]&&book.orders.some(o=>o.owner!==i&&(o.side==='sell'?o.price/100<f.beliefs[a]-.04-f.config.fee*2:o.price/100>f.beliefs[a]+.04+f.config.fee*2)));
       if(opportunity){f.press=f.config.pressTicks;f.cooldown=f.config.cooldownTicks;f.quotes=[];s.events.push({type:'press',firm:i,source:f.config.sources.manual});}
     }
     const units=f.units.map((u,index)=>({...u,card:byId(u.id),index})).filter(u=>u.card);
-    const traders=units.filter(u=>!['research','hedge'].includes(u.card.capability));
+    const traders=units.filter(u=>!['research','hedge'].includes(u.card.capability)&&u.id!=='specialist');
     // A basic house policy keeps support-only openings playable; it has no unit attribution.
     if(!traders.length)traders.push({id:null,star:1,index:0,card:{capability:'house',tier:1}});
     const forced=!f.quotes.length;
-    for(const u of units.filter(u=>u.card.capability==='research')) {
+    const researchers=units.filter(u=>u.card.capability==='research');
+    f.beliefs=[...s.prices];f.signalSources=researchers.map(u=>({id:u.id,uid:u.uid??null}));
+    const estimates=assets.map(()=>[]);
+    for(const u of researchers) {
       const source={id:u.id,uid:u.uid??null},activity=stats(f,source);
-      if(s.tick%2===1)for(let a=0;a<assets.length;a++) {
+      for(let a=0;a<assets.length;a++) {
         if(!s.active[a])continue;if(activity)activity.signals++;
-        s.events.push({type:'signal',firm:i,asset:a,source,estimate:s.prices[a]+s.measurements[a]*f.config.noise});
+        const observedTick=Math.max(0,s.tick-(u.card.tier>=2?0:1));
+        const estimate=s.fundamentalHistory[a][observedTick]+s.measurements[a]*f.config.noise,weight=unitGrade(u)**2;
+        estimates[a].push({estimate,weight});
+        const signal={firm:i,asset:a,source,estimate,observedTick,publicPrice:s.prices[a]};
+        s.events.push({type:'signal',...signal});s.pendingSignals.push(signal);
       }
     }
+    estimates.forEach((es,a)=>{if(es.length)f.beliefs[a]=es.reduce((n,e)=>n+e.estimate*e.weight,0)/es.reduce((n,e)=>n+e.weight,0);});
     for(const u of traders) {
       const capability=u.card.capability,source=u.id?{id:u.id,uid:u.uid??null}:null;
-      const cadence=capability==='execution'?1:capability==='house'?4:Math.min(f.config.cadence,capability==='manual'?3:2);
+      const cadence=['broker','agency-lead'].includes(u.id)?4:capability==='execution'?1:capability==='house'?4:Math.min(f.config.cadence,capability==='manual'?3:2);
       if(!forced&&s.tick%cadence!==0)continue;
       // Arrival order expresses execution speed; it never jumps an older resting FIFO order.
       const latency=(capability==='execution'?0:capability==='maker'?1:2)-f.config.priority*.1-(unitGrade(u)-1)*.05;
       jobs.push({f,i,u,source,latency});
     }
-    if(f.cards.includes('hedge') && (s.tick%4===0||f.risk>80))hedge(s,i,false,f.config.hedgeThreshold,'hedge',6);
+    if(units.some(u=>u.card.capability==='hedge'&&u.id!=='clerk') && (s.tick%4===0||f.risk>80))hedge(s,i,false,f.config.hedgeThreshold,'hedge',6);
     if(f.config.rebalanceEvery&&s.tick%f.config.rebalanceEvery===0)hedge(s,i,false,f.config.rebalanceLimit,'rebalance',6);
   });
   jobs.sort((a,b)=>a.latency-b.latency||((a.i+s.tick)%2-(b.i+s.tick)%2)||a.u.index-b.u.index);
@@ -102,11 +111,13 @@ export function advanceBook(s,assets,trade,hedge) {
     s.books.forEach((book,a)=>{
       cancelOrders(book,o=>o.owner===i&&o.key===key);
       if(!f.enabled[a]||!s.active[a])return;
-      const measurement=s.measurements[a],trend=Math.max(-.15,Math.min(.15,(s.prices[a]-s.previous[a])*f.config.trendTilt));
+      if(u.id==='agency-lead'&&a>1)return;
+      const trend=Math.max(-.15,Math.min(.15,(s.prices[a]-s.previous[a])*f.config.trendTilt));
       const spread=f.press?.055:f.stance==='defensive'?.28:.13;
       // Inventory skews quotes without automatically pricing the reducing side through fair value.
       const skew=Math.max(-spread*.6,Math.min(spread*.6,f.inv[a]*f.config.skew));
-      const center=s.prices[a]+measurement*f.config.noise+trend-skew+f.lean*f.config.leanStrength;
+      const decision=decisionFor(u.card,{asset:a,prices:s.prices,history:s.history,beliefs:f.beliefs,inventory:f.inv,capacity:f.config.capacity,lean:f.lean,leanStrength:f.config.leanStrength,trendTilt:f.config.trendTilt});
+      const center=decision.center-skew;
       const size=Math.max(1,Math.round(f.config.size/Math.sqrt(jobs.filter(j=>j.i===i).length)*grade*(f.stance==='defensive'?.5:1)));
       const levels=u.card.capability==='sizing'?2:1;
       const value=traitLevel(f.config.counts.Value||0,'Value');
@@ -114,12 +125,13 @@ export function advanceBook(s,assets,trade,hedge) {
       // Bot discretionary choices and Systematic automation use observed history, never future prices.
       const canFollow=(f.autopilot&&(f.cards.includes('research')||f.cards.includes('directional')))||f.config.trendTilt>0;
       const history=s.history[a],observed=history.at(-1)-history[Math.max(0,history.length-5)];
-      const direction=canFollow&&s.scenario==='trend'&&Math.abs(observed)>assets[a].vol*.7?Math.sign(observed):0;
-      const target=direction*Math.min(12,Math.floor(f.config.capacity*.3));
+      const direction=decision.target!=null?Math.sign(decision.target):canFollow&&Math.abs(observed)>assets[a].vol*.7?Math.sign(observed):0;
+      const target=decision.target??direction*Math.min(12,Math.floor(f.config.capacity*.3));
       let posted=0;
       for(let level=0;level<levels;level++)for(const side of ['buy','sell']) {
         if(direction>0&&side==='sell'&&f.inv[a]<target)continue;
         if(direction<0&&side==='buy'&&f.inv[a]>target)continue;
+        if(f.units.some(u=>u.id==='clerk')&&Math.abs(f.inv[a])>18&&((f.inv[a]>0&&side==='buy')||(f.inv[a]<0&&side==='sell'))){const guard=f.units.find(u=>u.id==='clerk'),activity=f.activity[guard.uid??guard.id];activity.guarded=(activity.guarded||0)+1;s.events.push({type:'guard',firm:i,asset:a,source:guard,target:source,inventory:f.inv[a]});continue;}
         const offset=spread+level*.12+value*.015;
         let price=Math.max(1,side==='buy'?Math.floor((center-offset)*100):Math.ceil((center+offset)*100));
         const reserved=book.orders.filter(o=>o.owner===i&&o.side===side).reduce((n,o)=>n+o.remaining,0);
@@ -138,8 +150,9 @@ export function advanceBook(s,assets,trade,hedge) {
       if(f.config.quoteFee){
         f.cash-=f.config.quoteFee;f.fees+=f.config.quoteFee;
         const account=f.unitLedger[key]??={source,cash:0,inv:assets.map(()=>0)};account.cash-=f.config.quoteFee;
+        account.fees=(account.fees||0)+f.config.quoteFee;
       }
-      s.events.push({type:posted?'quote':'limit',firm:i,asset:a,qty:posted?size:0,source,bid:Math.floor((center-spread-value*.015)*100)/100,ask:Math.ceil((center+spread+value*.015)*100)/100,trait:f.config.quoteFee?'HFT':null});
+      s.events.push({type:posted?'quote':'limit',firm:i,asset:a,qty:posted?size:0,source,support:f.signalSources,policy:decision.policy,pair:decision.pair,target,bid:Math.floor((center-spread-value*.015)*100)/100,ask:Math.ceil((center+spread+value*.015)*100)/100,trait:f.config.quoteFee?'HFT':null});
       if(posted&&u.card.capability==='sizing')s.events.push({type:'capacity',firm:i,asset:a,qty:size,source});
       if(trend)s.events.push({type:'trend',firm:i,asset:a,trait:'Systematic',tilt:trend});
     });

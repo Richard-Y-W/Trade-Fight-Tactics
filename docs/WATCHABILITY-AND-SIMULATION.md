@@ -1,5 +1,7 @@
 # Follow the edge
 
+Historical assessment from the prior pass. The 2026-10-23 overhaul adds hidden reference observations, distinct policies and Pixi/browser verification. Prefer [financial-model.md](financial-model.md) and [implementation-results.md](implementation-results.md) for current model and validation facts. The attribution principles below still apply.
+
 Current implementation assessment, October 2026. This document supplements the current [pacing](FAST-BETA-PACING.md) and [order-book mechanics](ORDERBOOK-AND-COMBAT.md). Older documents describe earlier prototypes.
 
 ## What changed
