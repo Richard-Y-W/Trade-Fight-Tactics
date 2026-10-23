@@ -11,7 +11,8 @@ export function unitMetrics(s,side,u) {
   if(card.capability==='research')advice=`${activity.signalCorrect||0}/${activity.signalChecked||0} estimates matched the next public move. This is a directional proxy, not causal profit.`;
   if(card.capability==='hedge')advice=u.id==='clerk'?'Blocks additional exposure above its threshold; emergency trimming still costs money.':`${activity.hedged||0} units trimmed for $${(activity.cost||0).toFixed(2)}. Lower exposure also sacrifices possible upside.`;
   if(contracts.length)advice='Pays both option premiums. Needs a large closing move in either direction; no intraday option valuation.';
-  return {unit:u,card,policy:policyFor(card),net,realized,unrealized,fees,hedgeCost:a?.hedgeCost||0,inventory,gross,common,activity,contracts,optionNet:a?.optionNet||0,advice,traits:card.traits.filter(t=>traitLevel(f.config.counts[t]||0,t)>0)};
+  const lastRoute=(s.replay||[]).findLast(e=>e.type==='order_routed'&&e.firm===side&&String(e.source?.uid??e.source?.id)===String(u.uid??u.id));
+  return {unit:u,card,policy:policyFor(card),net,realized,unrealized,fees,hedgeCost:a?.hedgeCost||0,inventory,gross,common,activity,contracts,optionNet:a?.optionNet||0,networkMs:(u.position?.row||0)*500,lastRoute,advice,traits:card.traits.filter(t=>traitLevel(f.config.counts[t]||0,t)>0)};
 }
 export function closingAnalysis(s,side=0) {
   const rows=s.firms[side].units.map(u=>unitMetrics(s,side,u)),traders=rows.filter(r=>!['research','hedge'].includes(r.card.capability)||r.contracts.length),support=rows.filter(r=>['research','hedge'].includes(r.card.capability));

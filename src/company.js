@@ -1,5 +1,6 @@
 import { CARDS, byId } from './roster.js';
 import { progression } from './progression.js';
+import { BOARD,assignPositions } from './board.js';
 // Original tuning for this prototype, not TFT's live bag-size table.
 export const POOL_COPIES = [24,20,16,12,9];
 export function createPool(copies=POOL_COPIES) {
@@ -33,7 +34,7 @@ export function offersFor(company, week) {
 }
 export function createCompany(seed = Date.now(),pool=createPool()) {
   const c = { units:[], credits:10, offers:[], pool, seed:seed >>> 0, nextUid:1, floorLimit:floorLimitFor(1), benchLimit:8, locked:false,eliminated:false };
-  c.offers = offersFor(c,1); return c;
+  c.board={...BOARD};c.offers = offersFor(c,1); return c;
 }
 export const deployed = c => c.units.filter(u => u.deployed);
 export const reserves = c => c.units.filter(u => !u.deployed);
@@ -68,12 +69,12 @@ export function buy(company, slot) {
 }
 export function move(company, uid, swapUid = null) {
   const u = company.units.find(x => x.uid === uid); if(!u) return false;
-  if(u.deployed) { if(reserves(company).length >= company.benchLimit) return false; u.deployed = false; return true; }
+  if(u.deployed) { if(reserves(company).length >= company.benchLimit) return false; u.deployed = false;delete u.position; return true; }
   if(deployed(company).length >= company.floorLimit) {
     const other = company.units.find(x => x.uid === swapUid && x.deployed); if(!other) return false;
-    other.deployed = false;
+    other.deployed = false;u.position=other.position;delete other.position;
   }
-  u.deployed = true; return true;
+  u.deployed = true;assignPositions(deployed(company),company.board); return true;
 }
 export function sell(company, uid) {
   const u = company.units.find(x => x.uid === uid); if(!u) return false;

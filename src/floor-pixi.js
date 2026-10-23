@@ -2,38 +2,43 @@ import { Application,Container,Graphics,Text,Sprite,Texture,Rectangle,Assets } f
 import { byId } from './roster.js';
 import { policyFor } from './strategies.js';
 import { selectVisualEvents,animationFor,advanceAnimation } from './floor-model.js';
+import { boardTile,unitKey } from './board.js';
+import { overlayData } from './board-overlays.js';
+import { supportGraph } from './positioning.js';
 
 const colors=[0x8ee8ac,0x85beff],roleColors={maker:0x94dfac,execution:0x74bbff,research:0xc59af1,manual:0xffc17c,hedge:0x75ded0,sizing:0xc8da88,volatility:0xe49bd5};
-const label=(text,size=12,fill=0xe6eddf)=>new Text({text,style:{fontFamily:'Arial',fontSize:size,fill,align:'center',wordWrap:true,wordWrapWidth:128}});
+const label=(text,size=12,fill=0xe6eddf)=>new Text({text,style:{fontFamily:'Arial',fontSize:size,fill,align:'center',wordWrap:true,wordWrapWidth:88}});
 export async function createFloorRenderer(host,{onSelect=()=>{},reduced=()=>false}={}) {
   const app=new Application();
-  await app.init({width:1100,height:370,background:0x101b18,antialias:false,resolution:Math.min(devicePixelRatio||1,2),autoDensity:true,preference:'webgl'});
+  await app.init({width:800,height:800,background:0x101b18,antialias:false,resolution:Math.min(devicePixelRatio||1,2),autoDensity:true,preference:'webgl'});
   host.replaceChildren(app.canvas);app.canvas.setAttribute('aria-label','Live trading floor: select units in the accessible floor cards below');
   let sheet=null;try{sheet=await Assets.load('/assets/kenney/characters/Spritesheet/roguelikeChar_transparent.png');sheet.source.scaleMode='nearest';}catch{/* Shape-based workstations remain fully playable. */}
-  const scene=new Container(),effects=new Container();app.stage.addChild(scene,effects);
-  const nodes=new Map(),markets=new Map(),pool=[],active=[];let state=null,signature='',lastEvent=0,frameMs=[],previousFrame=performance.now();
+  const backdrop=new Container(),scene=new Container(),effects=new Container(),heat=new Graphics(),links=new Graphics();app.stage.addChild(backdrop,heat,scene,links,effects);
+  const nodes=new Map(),markets=new Map(),pool=[],active=[];let state=null,signature='',lastEvent=0,frameMs=[],previousFrame=performance.now(),view={};
   for(let i=0;i<24;i++){const g=new Graphics();g.visible=false;effects.addChild(g);pool.push(g);}
-  const resize=()=>{const width=host.clientWidth||1100;app.renderer.resize(width,370);scene.scale.set(width/1100);effects.scale.set(width/1100);};
+  const numberPool=Array.from({length:8},()=>{const t=label('',15);t.anchor.set(.5);t.visible=false;effects.addChild(t);return t;}),numbers=[];
+  const resize=()=>{const width=host.clientWidth||640,height=width*(state?.board.rows||8)/(state?.board.cols||8);host.style.height=`${height}px`;if(app.renderer.width!==Math.round(width)||app.renderer.height!==Math.round(height))app.renderer.resize(width,height);for(const layer of [backdrop,scene,effects,heat,links])layer.scale.set(width/800);};
   const observer=new ResizeObserver(resize);observer.observe(host);resize();
   function pulse(from,to,color,kind='ticket') {
     const g=pool.find(g=>!g.visible);if(!g||reduced())return;
-    g.clear();if(kind==='link')g.rect(-3,-3,6,6).fill(color);else g.rect(-7,-4,14,8).fill(color).rect(-4,-1,8,2).fill(0x15241c);
+    g.clear();if(kind==='link')g.rect(-3,-3,6,6).fill(color);else if(kind==='quote')g.rect(-8,-6,12,7).fill(0x91dfad).rect(-3,2,12,7).fill(0x8fc1f0);else g.rect(-7,-4,14,8).fill(color).rect(-4,-1,8,2).fill(0x15241c);
     g.visible=true;g.alpha=1;active.push({g,from,to,start:performance.now(),duration:kind==='link'?650:850});
   }
   function rebuild(s) {
-    scene.removeChildren().forEach(c=>c.destroy({children:true}));nodes.clear();markets.clear();
-    const grid=new Graphics();for(let x=22;x<1100;x+=36)grid.moveTo(x,0).lineTo(x,370);grid.stroke({width:1,color:0x1a2b23});scene.addChild(grid);
-    const marketIndexes=s.active.flatMap((v,a)=>v?[a]:[]);
+    scene.removeChildren().forEach(c=>c.destroy({children:true}));backdrop.removeChildren().forEach(c=>c.destroy());nodes.clear();markets.clear();
+    const cell=800/s.board.cols,height=s.board.rows*cell,grid=new Graphics();
+    for(let row=0;row<s.board.rows;row++)for(let col=0;col<s.board.cols;col++)grid.rect(col*cell+2,row*cell+2,cell-4,cell-4).fill(row<s.board.half?0x17232a:0x192b20);
+    grid.moveTo(0,height/2).lineTo(800,height/2).stroke({width:3,color:0xb5d77b,alpha:.6});backdrop.addChild(grid);
+    const marketIndexes=[view.market||0];
     marketIndexes.forEach((a,i)=>{
-      const x=90+i*(920/Math.max(1,marketIndexes.length-1));
-      const box=new Graphics().roundRect(x-64,156,128,58,5).fill(0x283b30).stroke({width:1,color:0x526d51});scene.addChild(box);
-      const title=label(['NOVA','VOLT','ORE','BOND','FX'][a],12,0xd6e7bc);title.anchor.set(.5);title.position.set(x,169);scene.addChild(title);
-      const price=label('',15);price.anchor.set(.5);price.position.set(x,195);scene.addChild(price);markets.set(a,{x,y:185,price});
+      const x=400,y=height/2;
+      const box=new Graphics().roundRect(x-55,y-9,110,18,4).fill(0x263c26).stroke({width:1,color:0x8da578});scene.addChild(box);
+      const price=label('',11);price.anchor.set(.5);price.position.set(x,y);scene.addChild(price);markets.set(a,{x,y,price});
     });
-    s.firms.forEach((f,side)=>f.units.forEach((u,i)=>{
-      const c=byId(u.id),role=u.id==='specialist'?'volatility':c.capability,x=f.units.length===1?550:75+i*(950/(f.units.length-1)),y=side?31:265;
+    s.firms.forEach((f,side)=>(side&&view.phase==='prep'?(view.opponent||f.units):f.units).forEach((u,i)=>{
+      const tile=boardTile(u.position,side,s.board),c=byId(u.id),role=u.id==='specialist'?'volatility':c.capability,x=(tile.col+.5)*cell,y=tile.row*cell+18;
       const group=new Container();group.position.set(x,y);group.eventMode='static';group.cursor='pointer';group.on('pointertap',()=>onSelect(side,String(u.uid??u.id)));scene.addChild(group);
-      const pad=new Graphics().roundRect(-65,-16,130,94,5).fill(0x192b22).stroke({width:1,color:colors[side],alpha:.5});group.addChild(pad);
+      const pad=new Graphics().roundRect(-cell/2+5,-12,cell-10,cell-10,5).fill(0x192b22).stroke({width:1,color:colors[side],alpha:.5});group.addChild(pad);
       const desk=new Graphics();const col=roleColors[role];
       desk.rect(-30,23,60,5).fill(0x8a7255).rect(-25,28,5,10).fill(0x4e5446).rect(22,28,5,10).fill(0x4e5446);
       const screens=role==='execution'?3:role==='maker'||role==='sizing'?2:1;
@@ -45,20 +50,31 @@ export async function createFloorRenderer(host,{onSelect=()=>{},reduced=()=>fals
       if(role==='volatility')desk.moveTo(-24,-9).lineTo(0,15).lineTo(24,-9).stroke({width:4,color:col});
       group.addChild(desk);
       if(sheet){const rows={maker:5,execution:6,research:7,hedge:8,manual:9,sizing:10,volatility:7};const sprite=new Sprite(new Texture({source:sheet.source,frame:new Rectangle(0,rows[role]*17,16,16)}));sprite.scale.set(2);sprite.position.set(-15,-14);group.addChildAt(sprite,1);}
-      const name=label(c.name,11,colors[side]);name.anchor.set(.5,0);name.position.set(0,40);group.addChild(name);
-      const metric=label('',10);metric.anchor.set(.5,0);metric.position.set(0,65);group.addChild(metric);
+      const displayName=c.name.replace(/^Junior /,'').replace(/ Lead$| PM$| Apprentice$| Founder$/,'').replace('Microstructure','Micro').replace('Allocation','Alloc.');
+      const name=label(displayName,12,colors[side]);name.anchor.set(.5,0);name.position.set(0,34);group.addChild(name);
+      const star=label('★'.repeat(u.star||1),10,0xe9d87f);star.position.set(-cell/2+8,-10);group.addChild(star);
+      const metric=label('',11);metric.anchor.set(.5,0);metric.position.set(0,65);group.addChild(metric);
       nodes.set(`${side}:${u.uid??u.id}`,{group,desk,metric,pad,x,y,animation:{name:'idle',until:Infinity},unit:u,role});
     }));
   }
-  function update(s) {
-    state=s;const next=s.firms.map(f=>f.units.map(u=>`${u.uid??u.id}:${u.star}`).join(',')).join('/')+s.active.join();
+  function update(s,options={}) {
+    state=s;view=options;const next=JSON.stringify([s.firms[0].units,view.phase==='prep'?view.opponent:s.firms[1].units].map(us=>us.map(u=>[u.uid??u.id,u.star,u.position])))+s.active.join()+view.market+view.phase+JSON.stringify(s.board);
     if(next!==signature){signature=next;rebuild(s);}
+    resize();
     if(s.tick===0&&s.eventSequence<lastEvent)lastEvent=0;
-    for(const [a,m] of markets)m.price.text=`$${s.prices[a].toFixed(2)}`;
+    for(const [a,m] of markets)m.price.text=`${['NOVA','VOLT','ORE','BOND','FX'][a]} $${s.prices[a].toFixed(2)}`;
+    heat.clear();links.clear();const overlay=overlayData(s,view.overlay,view.market),max=Math.max(1,...overlay.map(v=>Math.abs(v.value))),cell=800/s.board.cols;
+    for(const h of overlay){const node=nodes.get(`${h.side}:${h.key}`);if(!node||!h.value||view.phase==='prep')continue;heat.rect(h.position.col*cell+2,h.position.row*cell+2,cell-4,cell-4).fill({color:view.overlay==='risk'?0xe8b46f:h.value<0?0xe89874:colors[h.side],alpha:.08+Math.min(.27,Math.abs(h.value)/max*.27)});}
+    const selectedNode=nodes.get(`${view.selectedSide||0}:${view.selectedUnit}`);
+    if(selectedNode){for(const [side,f] of s.firms.entries())for(const e of (side&&view.phase==='prep'?supportGraph(view.opponent||[],s.board):f.supportLinks)||[]){if(side!==(view.selectedSide||0)||(unitKey(e.source)!==String(view.selectedUnit)&&unitKey(e.target)!==String(view.selectedUnit)))continue;const a=nodes.get(`${side}:${unitKey(e.source)}`),b=nodes.get(`${side}:${unitKey(e.target)}`);if(a&&b)links.moveTo(a.x,a.y).lineTo(b.x,b.y).stroke({width:2,color:e.kind==='risk'?0x75ded0:e.kind==='research'?0xc59af1:0xe2d690,alpha:.5});}}
     for(const [key,n] of nodes){const side=Number(key[0]),f=s.firms[side],a=f.activity[n.unit.uid??n.unit.id],account=f.unitLedger[n.unit.uid??n.unit.id];
       const net=account?account.cash+account.inv.reduce((v,q,i)=>v+q*s.prices[i],0):0;
+      if(s.tick>0&&n.lastNet!=null&&Math.abs(net-n.lastNet)>=.5&&!reduced()){
+        const prior=numbers.find(p=>p.key===key),text=prior?.text||numberPool.find(t=>!t.visible);if(text){const delta=(prior?.delta||0)+net-n.lastNet;text.text=`Δ ${delta<0?'-':'+'}$${Math.abs(delta).toFixed(2)}`;text.style.fill=delta<0?0xffb28b:0xc7f291;text.visible=true;text.position.set(n.x,n.y);if(prior){prior.delta=delta;prior.start=performance.now();}else numbers.push({key,delta,text,x:n.x,y:n.y,start:performance.now()});}
+      }n.lastNet=net;
       n.metric.text=n.role==='research'?`${a?.signalCorrect||0}/${a?.signalChecked||0} next-move` :n.role==='hedge'?(n.unit.id==='clerk'?`${a?.guarded||0} quote guards`:`${a?.hedged||0} trimmed`):`${net<0?'-':'+'}$${Math.abs(net).toFixed(2)} · ${a?.fills||0} fills`;
       n.metric.style.fill=net<-.01?0xffb68b:colors[side];
+      if(view.phase==='prep'&&side)n.metric.text='SCOUT SNAPSHOT';
     }
     const events=s.events.filter(e=>e.eventId>lastEvent);lastEvent=Math.max(lastEvent,...events.map(e=>e.eventId||0));
     for(const e of events.filter(e=>e.type==='quote'&&e.source&&e.support?.length).slice(0,2)){
@@ -67,7 +83,8 @@ export async function createFloorRenderer(host,{onSelect=()=>{},reduced=()=>fals
     for(const e of selectVisualEvents(events,{reduced:reduced()})){
       const n=nodes.get(`${e.firm}:${e.source.uid??e.source.id}`);if(!n)continue;
       n.animation={name:animationFor(e),until:performance.now()+650};
-      const market=markets.get(e.asset);if(market)pulse(n,market,colors[e.firm]);
+      const market=markets.get(e.asset) || (e.type==='order_routed'?markets.get(view.market||0):null);if(market)pulse(e.type==='fill'||e.type==='cancel'?market:n,e.type==='fill'||e.type==='cancel'?n:market,e.type==='cancel'?0xe7a894:e.type==='fill'?(e.edge<0?0xffad7a:0xd7efb8):colors[e.firm],e.type==='quote'?'quote':'ticket');
+      if(e.type==='support_applied'&&e.target){const target=nodes.get(`${e.firm}:${unitKey(e.target)}`);if(target)pulse(n,target,e.supportKind==='manager'?0xe2d690:0x74bbff,'link');}
       if(e.type==='quote'&&e.support?.length){const helper=nodes.get(`${e.firm}:${e.support[0].uid??e.support[0].id}`);if(helper)pulse(helper,n,0xc59af1,'link');}
       if(e.type==='hedge')for(const a of (e.affected||[]).slice(0,2)){const ally=nodes.get(`${e.firm}:${a.source?.uid??a.source?.id}`);if(ally)pulse(n,ally,0x75ded0,'link');}
       if(e.type==='contest'){const rival=nodes.get(`${1-e.firm}:${e.opponent.uid??e.opponent.id}`);if(rival){rival.animation={name:'stress',until:performance.now()+650};pulse(n,rival,colors[e.firm],'link');}}
@@ -76,13 +93,14 @@ export async function createFloorRenderer(host,{onSelect=()=>{},reduced=()=>fals
   }
   app.ticker.maxFPS=60;
   app.ticker.add(()=>{
-    const now=performance.now();frameMs.push(now-previousFrame);previousFrame=now;if(frameMs.length>300)frameMs.shift();
+      const now=performance.now();frameMs.push(now-previousFrame);previousFrame=now;if(frameMs.length>300)frameMs.shift();
     for(const n of nodes.values()){
       n.animation=advanceAnimation(n.animation,now);const mode=reduced()?'idle':n.animation.name;
-      n.desk.y=mode==='action'?Math.sin(now/55)*2:0;n.group.alpha=mode==='stress'?.7+Math.sin(now/45)*.15:1;
+      n.desk.y=mode==='action'?Math.sin(now/55)*2:0;n.group.alpha=view.phase==='prep'&&nodes.get(`1:${unitKey(n.unit)}`)===n ? .35 : mode==='stress' ? .7+Math.sin(now/45)*.15 : 1;
       n.desk.tint=mode==='success'?0xc5ffbf:mode==='stress'?0xffb393:mode==='synergy'?0xdfbeff:0xffffff;
     }
     for(let i=active.length-1;i>=0;i--){const p=active[i],t=Math.min(1,(now-p.start)/p.duration);p.g.position.set(p.from.x+(p.to.x-p.from.x)*t,p.from.y+(p.to.y-p.from.y)*t-25*Math.sin(t*Math.PI));p.g.alpha=1-t*.4;if(t===1||reduced()){p.g.visible=false;active.splice(i,1);}}
+    for(let i=numbers.length-1;i>=0;i--){const n=numbers[i],t=Math.min(1,(now-n.start)/850);n.text.position.set(n.x,n.y-20-25*t);n.text.alpha=1-t;n.text.scale.set(1+Math.sin(t*Math.PI)*.15);if(t===1||reduced()){n.text.visible=false;numbers.splice(i,1);}}
   });
   return {update,metrics:()=>({renderer:app.renderer.name,effects:active.length,pool:pool.length,frameMs:[...frameMs]}),destroy(){observer.disconnect();app.destroy(true,{children:true});}};
 }

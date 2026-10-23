@@ -23,7 +23,7 @@ test('every deployed trading unit owns its quote events; research emits separate
   assert.ok(view.units.some(e=>e.type==='signal' && e.source.uid===12));
 });
 test('a hedge cue reports the inventory reduced and exact cost; an empty hedge has no protection effect',()=>{
-  const s=createDay([{id:'clerk',uid:5,star:1}],8);assert.equal(command(s,'hedge'),true);assert.equal(s.events.length,0);
+  const s=createDay([{id:'clerk',uid:5,star:1}],8);assert.equal(command(s,'hedge'),true);assert.equal(s.events.filter(e=>e.type==='hedge').length,0);assert.ok(s.events.every(e=>e.type==='command'));
   s.firms[0].cooldown=0;trade(s.firms[0],0,15,100);
   const before=s.firms[0].cash;command(s,'hedge');
   const e=s.events.find(e=>e.type==='hedge');assert.equal(e.source.uid,5);assert.equal(e.before,15);assert.equal(e.after,0);

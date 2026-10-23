@@ -37,7 +37,7 @@ export function createBattleObserver() {
       const accounts=Object.keys(f.unitLedger),holding=Object.values(carry[side]).reduce((n,v)=>n+v,0),net=equity(f,s.prices)-10000;
       const ledger=accounts.reduce((n,k)=>n+marked(f.unitLedger[k],s.prices),0);
       const optionNet=Object.values(f.unitLedger).reduce((n,a)=>n+(a.optionNet||0),0);
-      return {rows,net,holding,trades:ledger-holding-optionNet,other:net-ledger+optionNet,pressure:f.risk,noise:f.config.noise,counts:f.config.counts};
+      return {rows,net,holding,trades:ledger-holding-optionNet,other:net-ledger+optionNet,pressure:f.risk,noise:f.config.noise,counts:f.config.counts,links:f.supportLinks};
     });
     return {firms,recent};
   };
@@ -47,7 +47,8 @@ export function teamworkFor(row,firm) {
   const traders=firm.rows.filter(r=>!['research','hedge'].includes(r.card.capability));
   const partners=firm.rows.filter(r=>r.key!==row.key&&r.card.traits.some(t=>row.card.traits.includes(t)&&traitLevel(firm.counts[t]||0,t)>0));
   const traits=row.card.traits.filter(t=>traitLevel(firm.counts[t]||0,t)>0);
-  const support=row.card.capability==='research'?`Prices offers for ${traders.length} trading units. Shared estimate noise ±$${(firm.noise/2).toFixed(3)}; not a forecast.`:row.card.capability==='hedge'?`Trims shared inventory. ${row.activity.hedged||0} units reduced; $${(row.activity.cost||0).toFixed(2)} execution cost. No guaranteed losses avoided.`:`Owns these trades. ${firm.rows.filter(r=>r.card.capability==='research').length} research units help price offers; ${firm.rows.filter(r=>r.card.capability==='hedge').length} protectors can trim shared exposure.`;
+  const reachable=(kind,direction='target')=>(firm.links||[]).filter(e=>e.kind===kind&&String(e[direction].uid??e[direction].id)===row.key);
+  const support=row.card.capability==='research'?`Prices offers for ${reachable('research','source').length} trading units in local range. Estimates can be wrong or late, not a forecast guarantee.`:row.card.capability==='hedge'?`${reachable('risk','source').length} monitored traders. ${row.activity.hedged||0} units reduced; $${(row.activity.cost||0).toFixed(2)} cost. No guaranteed losses avoided.`:`Owns these trades. ${reachable('research').length} connected research units; ${reachable('risk').length} local risk units. Network distance ${row.unit.position?.row*500||0}ms before infrastructure/queue adjustments.`;
   return {partners,traits,support};
 }
 
@@ -64,7 +65,7 @@ export function createBattleReadout(root=document) {
     const el=root.getElementById('battle-readout');if(!el||!model)return;
     const inspectionOpen=!!el.querySelector('.inspection-advanced')?.open,momentsOpen=!!el.querySelector('.battle-moments')?.open;
     const {firms,recent}=model;
-    if(!state.tick){el.innerHTML='<div class="readout-intro"><b>Follow the edge.</b><span>Select a floor unit during the day to see its trades, exposure and teammates. Volume ≠ profit.</span></div>';return;}
+    if(!state.tick&&!focus){el.innerHTML='<div class="readout-intro"><b>Follow the edge.</b><span>Select a floor unit to inspect its local support, positions and accounting. Volume ≠ profit.</span></div>';return;}
     const side=focus?.side??0,firm=firms[side];
     const row=firm.rows.find(r=>r.key===focus?.key)||[...firm.rows].sort((a,b)=>Math.abs(b.net)-Math.abs(a.net))[0];
     if(!row)return;
@@ -75,6 +76,7 @@ export function createBattleReadout(root=document) {
     detail.open=inspectionOpen;
     detail.innerHTML=`<summary>${metrics.policy} · accounting & advice</summary><p>${metrics.advice}</p><div class="unit-drivers"><span>Realized ${money(metrics.realized)}</span><span>Open position ${money(metrics.unrealized)}</span><span>Fees $${metrics.fees.toFixed(2)}</span><span>Hedge cost included $${metrics.hedgeCost.toFixed(2)}</span><span>Gross $${metrics.gross.toFixed(0)}</span></div><small>Hedge cost is already reflected in net P&L; do not subtract it again. Equipment: not implemented. All open markets unless the policy specializes.</small>`;
     el.querySelector('.watch-unit').append(detail);
+    const route=root.createElement('p');route.textContent=`Base network ${metrics.networkMs}ms. ${metrics.lastRoute?`Last intent: created ${metrics.lastRoute.createdTick*500}ms, arrival ${metrics.lastRoute.arrivalTick*500}ms; effective latency ${metrics.lastRoute.latencyMs}ms.`:'No trading intent yet.'}`;detail.append(route);
     el.querySelector('.battle-moments').open=momentsOpen;
     root.querySelectorAll('.watch-focused,.watch-partner').forEach(n=>n.classList.remove('watch-focused','watch-partner'));
     for(const [r,cls] of [[row,'watch-focused'],...team.partners.map(r=>[r,'watch-partner'])]) {

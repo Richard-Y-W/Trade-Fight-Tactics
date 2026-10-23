@@ -8,8 +8,8 @@ test('complete playable week, Pixi combat, inspection, resized layout and reduce
   await page.screenshot({path:'docs/media/ui-preparation.png',fullPage:true});
   for(const slot of [0,1,3]){await page.locator(`[data-buy="${slot}"]`).click();await page.locator('#bench [data-move]').last().click();}
   await expect(page.locator('#desk .company-unit')).toHaveCount(3);
-  await page.locator('#start').click();await advance(7000);
-  await page.locator('#desk [data-select]').first().click();
+  await page.locator('#start').click();await advance(8500);
+  await page.locator('[data-tile-side="0"]').first().click();
   await expect(page.locator('#battle-readout')).toContainText('Trades & costs');
   await page.locator('.inspection-advanced summary').click();await expect(page.locator('.inspection-advanced')).toContainText('Realized');
   await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:'docs/media/ui-combat.png',fullPage:true});
@@ -21,7 +21,7 @@ test('complete playable week, Pixi combat, inspection, resized layout and reduce
   await expect(page.locator('#day-result')).toBeVisible();await expect(page.locator('#closing-highlights')).toContainText('TOP ORDER STREAM');
   await page.screenshot({path:'docs/media/ui-closing.png',fullPage:true});
   await page.locator('#next').click();
-  for(let d=2;d<=5;d++){await page.locator('#start').click();await advance(40000);await expect(page.locator('#day-result')).toBeVisible();await page.locator('#next').click();}
+  for(let d=2;d<=5;d++){await page.locator('#start').click();await advance(42000);await expect(page.locator('#day-result')).toBeVisible();await page.locator('#next').click();}
   await expect(page.locator('#phase-label')).toHaveText('WEEKEND DRAFT');await page.screenshot({path:'docs/media/ui-weekend.png',fullPage:true});
   expect(errors).toEqual([]);
 });

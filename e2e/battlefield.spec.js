@@ -1,0 +1,20 @@
+import { test,expect } from '@playwright/test';
+test('drag reserve to board, swap, return, scout snapshots and preserve tiles across opening',async({page})=>{
+  await page.clock.install({time:new Date(1)});await page.goto('/');await expect(page.locator('#combat-floor')).toHaveAttribute('data-renderer','pixi');
+  await expect(page.locator('.deployment-tile')).toHaveCount(64);
+  await page.locator('#board-width').selectOption('9');await expect(page.locator('.deployment-tile')).toHaveCount(72);await page.locator('#board-width').selectOption('8');
+  await page.locator('[data-buy="0"]').click();const reserve=page.locator('#bench [data-instance]').first(),uid=await reserve.getAttribute('data-instance');
+  const a=page.locator('[data-tile-col="2"][data-tile-row="6"]');await reserve.dragTo(a);await expect(a).toHaveAttribute('data-tile-uid',uid);
+  await page.locator('[data-buy="1"]').click();const second=page.locator('#bench [data-instance]').first(),uid2=await second.getAttribute('data-instance');await second.dragTo(a);await expect(a).toHaveAttribute('data-tile-uid',uid2);await expect(page.locator(`#bench [data-instance="${uid}"]`)).toHaveCount(1);
+  const b=page.locator('[data-tile-col="5"][data-tile-row="7"]');await a.dragTo(b);await expect(b).toHaveAttribute('data-tile-uid',uid2);
+  await b.dragTo(page.locator('#bench'));await expect(b).not.toHaveAttribute('data-tile-uid',uid2);
+  await page.locator(`#bench [data-instance="${uid2}"]`).dragTo(a);
+  await page.locator('[data-player="ivory"]').click();await expect(page.locator('#scout-stamp')).toContainText('Ivory Research');
+  await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:'docs/media/board-deployment.png',fullPage:true});
+  await page.locator('#board-overlay').selectOption('risk');await expect(page.locator('#overlay-metric')).toContainText('Gross');
+  await page.locator('#start').click();await expect(page.locator('body')).toHaveAttribute('data-battle-phase','opening');await expect(page.locator('#timer')).toHaveText('0:40');
+  await page.clock.fastForward(1500);await expect(a).toHaveAttribute('data-tile-uid',uid2);await expect(page.locator('#scout-stamp')).toContainText('Final opponent');
+  await page.locator('[data-market-select="1"]').click();await expect(page.locator('#exchange-status')).toContainText('VOLT');
+  for(let n=0;n<10;n++)await page.clock.fastForward(500);await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:'docs/media/board-combat.png',fullPage:true});
+  await expect(page.locator('#analytics-drawer')).not.toHaveAttribute('open','');
+});

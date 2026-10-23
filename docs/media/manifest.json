@@ -23,10 +23,10 @@
     "frames": 89,
     "durationSeconds": 44.5,
     "render": "Offline SVG engine replay; not an application screen recording",
-    "traceSha256": "4baf1cb5f4cfb18d47b51df567a49b25785210f14d84e5167c2344d43c1a9acb",
+    "traceSha256": "376f0ab156066708040eb2c5cff5ebde8118060d570e1380365f31136974e1d9",
     "scores": [
-      21.625184533408174,
-      27.93869570247807
+      26.44628922792981,
+      30.711616510800013
     ]
   },
   {
@@ -61,10 +61,10 @@
     "frames": 89,
     "durationSeconds": 44.5,
     "render": "Offline SVG engine replay; not an application screen recording",
-    "traceSha256": "b39f862b2bcbc2ca5e205bb6685b9aba9aa557f65893c8de9f8b65eebc491d44",
+    "traceSha256": "bc4adc5b04e89e7f25c3a35d29bca363bff4557d3b171a74fb60afcb2dfcc3b7",
     "scores": [
-      10.744199714494243,
-      -145.1297110785199
+      9.84900420386657,
+      -107.30099929619973
     ]
   }
 ]

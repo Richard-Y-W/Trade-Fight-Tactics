@@ -6,6 +6,12 @@ A market-making autobattler where the market is the battlefield. Recruit traders
 
 Forty seconds. One shared market. Your quotes, your inventory, your consequences.
 
+Deploy on a configurable **8×8 tactical board** (9×8 test option). Drag from the bench, swap tiles, inspect local support and scout snapshot formations. Distance changes actual order-arrival time; researchers, engineers, managers and risk units have finite local connections. The center exchange is shared by every market, with no sector lanes or role quotas. Select Activity, Net P&L, Exposure, Execution competition or Selected-market overlays while other markets keep running.
+
+[![Tactical battlefield deployment](docs/media/board-deployment.png)](docs/media/board-combat.png)
+
+Detailed analytics, controls and market charts are preserved in drawers. [Board rules and financial positioning](docs/positioning-mechanics.md), [current results and unfinished work](docs/implementation-results.md).
+
 > Local mechanics prototype. Trade Fight Tactics is the internal working title; the public-release name will change. This is a finance-inspired strategy game, not a calibrated trading simulator.
 
 ## Watch a trading day
@@ -59,7 +65,7 @@ Both. Seeded market moves and customer flow create uncertainty, while quoting, F
 
 The accounting and matching foundation is ready for prototype playtests. Public prices now lag a separate hidden reference process; research supplies imperfect, sometimes delayed observations, and bots trade from delivered beliefs and public history. Existing identities now include momentum, mean reversion, relative-value legs, inventory guarding and an expiry straddle. Many other identities deliberately retain family policies. There is no calibrated market impact, financing, borrow, margin liquidation or intraday option valuation.
 
-The updated actual-bot audit covers **1,750 duels**; Friday has **46.7%** positive firm results. A further **1,080 seat-swapped composition duels** use common seeds and identical autonomous controls. These expose substantial imbalance, including severe mean-reversion losses in directional sessions. The updated simulation-only benchmark averages **1.17ms per four-duel tick**, excluding rendering, against a 500ms tick budget. These are diagnostics, not evidence of calibrated realism or release-ready balance. [Current model and accounting](docs/financial-model.md), [implementation results](docs/implementation-results.md).
+The positional actual-bot audit covers **1,750 duels**; Friday has **23.6%** positive firm results and remains too harsh. A separate **960-duel formation audit** compares clustered/dispersed HFT, research, defensive and manager-heavy firms using common seeds and both seats. Positioning matters substantially, but dispersed formations are strongly disadvantaged. The simulation-only benchmark averages approximately **1.98ms per four-duel tick**, excluding rendering, against a 500ms tick budget. These are diagnostics, not evidence of calibrated realism, enjoyable counterplay or release-ready balance. Earlier composition audits remain historical. [Positioning mechanics](docs/positioning-mechanics.md), [implementation results](docs/implementation-results.md).
 
 ## Develop and verify
 
@@ -69,11 +75,13 @@ npm test
 npm run check
 npm run check:readout
 npm run check:overhaul
+npm run check:battlefield
 npm run build:renderer
 npx playwright install ffmpeg
 npm run test:e2e
 npm run audit:bots
 npm run audit:compositions
+npm run audit:battlefield
 npm run benchmark:market
 npm run showcase
 ```
@@ -88,13 +96,13 @@ The browser game uses plain JavaScript, HTML/CSS menus, PixiJS v8 combat and acc
 | UI and battle explanations | [app.js](src/app.js), [battle-readout.js](src/battle-readout.js) |
 | Reproducible showcases | [showcases.mjs](scripts/showcases.mjs) |
 
-60 automated Node tests cover accounting, supply conservation, queues, upgrades, daily unlocks, controls, attribution, option expiry, information boundaries, covariance and a full-week UI journey. Browser checks cover Pixi startup, a full week/weekend, inspection, resizing, reduced effects and missing-character fallback. A separate real-time browser test records combat and measures frame intervals. Screenshots and audit artifacts live under `docs/media/` and `docs/audits/`. Human beginner comprehension remains untested; the [readability protocol](docs/playtest-readability.md) is a release gate.
+69 automated Node tests cover accounting, supply conservation, queues, upgrades, daily unlocks, controls, attribution, option expiry, information boundaries, covariance, placement, latency, local support and a full-week UI journey. Four browser checks cover actual dragging/swaps/bench return, alternate geometry, scouting, opening continuity, market selection, Pixi, a full week/weekend, inspection, resizing, reduced effects, missing-character fallback and real-time video/frame measurements. Screenshots and audit artifacts live under `docs/media/` and `docs/audits/`. Human beginner comprehension remains untested; the [readability protocol](docs/visual-readability-tests.md) is a release gate.
 
 ## What's next
 
 Make every trading day readable enough that a spectator can identify the carry, the risk and the support without studying a dashboard. Then improve information asymmetry, differentiate strategy families and run controlled composition playtests. Items come after the combat is understandable.
 
-Online multiplayer, an authoritative server, live spectating, persistent saves, item crafting, spatial positioning, opening PvE and historical-era unlocks are **not implemented**. The current lobby is a local bot exhibition, and the main rival does not rotate. Trading bankroll and positions reset daily; recruitment credits, units and health persist within the match.
+Online multiplayer, an authoritative server, live spectating, persistent saves, item crafting, opening PvE and historical-era unlocks are **not implemented**. The current lobby is a local bot exhibition, and the main rival does not rotate. Trading bankroll and asset holdings reset daily; recruitment credits, units, tile formations and health persist within the match.
 
 ## Keep the context
 

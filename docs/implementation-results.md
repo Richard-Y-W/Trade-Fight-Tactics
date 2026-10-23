@@ -1,5 +1,27 @@
 # Combat overhaul: implementation results
 
+## Current battlefield pass
+
+The board is now the deployment model as well as the renderer: configurable 8×8 (9×8 test option), freeform positions on mirrored halves, pointer drag/click placement, floor/bench swaps, keyboard tile navigation, local support preview and frozen in-combat formation. Existing total deployment limits still apply; there are no role quotas, mandatory markets or fixed sector lanes.
+
+Positions schedule real delayed quote intents with creation/arrival timestamps. Local research has two targets, execution sources two, risk/management sources three, all in Manhattan range two. Engineers remove one network tick without negative latency; managers have finite processing-priority tokens. Independent private research noise and paid support production feed only connected quotes. Automatic hedges cannot close an unreachable owner's positions; a paid manual emergency action remains firm-wide. Support-only compositions are legal and no longer receive invisible house trades. Price/FIFO matching, accounting and seeded price generation are preserved.
+
+The selected exchange overlays the center boundary and consumes no tiles. Snapshotted scouting ghosts retain known positions until a new scout request or final reveal. A reduced-motion-skippable 1.2s opening precedes the 40s trading clock. Exact activity/net-P&L/gross-exposure/contest/selected-market overlays, selected-market packets, pooled net-change feedback and role effects connect actual finance to the board. Follow the edge, controls, scouting and detailed market charts remain in optional drawers; results are a non-blocking strip.
+
+Validation: **69 Node tests**, **four Edge browser tests** (including real pointer drag/swaps/bench return, 9×8 geometry, scouting, opening/position continuity and a full week), refreshed screenshots and real-time battle recording. Commands and human usability limits: [visual-readability-tests.md](visual-readability-tests.md). Browser images: [deployment](media/board-deployment.png), [combat](media/board-combat.png), [recording](media/browser-battle.webm). The human beginner test remains unperformed.
+
+Latest headless benchmark artifact measures 7,200 warmed four-duel ticks, approximately **1.98ms mean**, excluding browser rendering, versus a 500ms tick budget. Browser RAF intervals are separately measured in [browser-frame-times.json](audits/browser-frame-times.json), not presented as renderer FPS. No worker or C++ rewrite is justified by this measurement.
+
+The [960-duel formation audit](audits/battlefield-formations.json) uses four five-unit reference firms, clustered/dispersed layouts, 20 common seeds, both seats and three authored regimes versus clustered HFT. In calm sessions, clustered research averaged +$74.11 versus -$10.02 dispersed; mean routing was 0ms versus 1250ms. This demonstrates consequences, not healthy balance. Dispersed layouts are strongly disadvantaged; reference costs differ and no human skill/fun is measured.
+
+The [updated 1,750-duel drafted-bot audit](audits/bots-battlefield.json) finds 93.6/88.1/74.1/83.3/23.6% profitable firm results across Monday–Friday. Friday mean is -$71.44 and both firms are non-positive in 54.3% of Friday duels. An [initial positional diagnostic](audits/bots-battlefield-initial.json) was worse: 8.6% Friday profitability before increasing ordinary dispatch capacity and using volatility/delay-aware passive spreads. Several mechanisms changed; this is not a causal experiment or a claim of release-ready tuning.
+
+Current rules are documented in [battlefield-design.md](battlefield-design.md), [positioning-mechanics.md](positioning-mechanics.md), [combat-visualization.md](combat-visualization.md), [market-overlays.md](market-overlays.md) and [financial-consistency.md](financial-consistency.md).
+
+Remaining limitations: no human watchability results; no tuned positional counter-meta, adaptive bot formation search, complete touch-device QA or confidence-interval study; ordinary tick quantization is coarse; some traits remain firm-wide; managers/infrastructure may retain hybrid policies. Items/equipment, online multiplayer, endogenous price discovery, calibrated latency, financing/margin and continuous option valuation remain unimplemented. This pass establishes integrated board mechanics, not a finished competitive game.
+
+## Previous pass record
+
 This is a playable integrated improvement, retaining the browser/Node architecture and existing recruitment, bench, pool, merges, interest, controls, 40-second days and weekend. It is not a completed implementation of every proposed production feature.
 
 ## Delivered

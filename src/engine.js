@@ -1,5 +1,7 @@
 import { buildConfig,byId,unitGrade,traitLevel } from './roster.js';
 import { stampEvents } from './combat-events.js';
+import { BOARD,assignPositions,boardConfig,unitKey } from './board.js';
+import { supportGraph,supporters } from './positioning.js';
 import { setupBooks,advanceBook,customerOrder,cancelFirmOrders,syncQuotes,seedQuoteSnapshot } from './market-session.js';
 export { CARDS } from './roster.js';
 export const ASSETS = [
@@ -16,16 +18,17 @@ export const SCENARIOS = {
 };
 export function scenarioFor(seed) { return Object.keys(SCENARIOS)[Math.abs(seed)%3]; }
 export function rng(seed = 12345) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
-export function firm(units = []) { const config = buildConfig(units), zeros=()=>ASSETS.map(()=>0),normalized=units.map(u=>typeof u==='string'?{id:u,star:1}:{...u}); return { units:normalized,activity:Object.fromEntries(normalized.map(u=>[u.uid??u.id,{quotes:0,fills:0,taken:0,signals:0,hedged:0,cost:0}])),unitLedger:{}, config, cards:config.capabilities, cash:10000, inv:zeros(), basis:zeros(), realized:zeros(), fills:zeros(), pnl:zeros(), enabled:ASSETS.map(()=>true), quotes:[], risk:0, lean:0, stance:'balanced', press:0, cooldown:0, fees:0, option:null,stats:{requests:0,unfilled:0,crossUnits:0} }; }
+export function firm(units = [],board=BOARD) { const config = buildConfig(units), zeros=()=>ASSETS.map(()=>0),normalized=assignPositions(units.map(u=>typeof u==='string'?{id:u,star:1}:{...u}),board); return { board,units:normalized,supportLinks:supportGraph(normalized,board),activity:Object.fromEntries(normalized.map(u=>[u.uid??u.id,{quotes:0,fills:0,taken:0,signals:0,hedged:0,cost:0}])),unitLedger:{}, config, cards:config.capabilities, cash:10000, inv:zeros(), basis:zeros(), realized:zeros(), fills:zeros(), pnl:zeros(), enabled:ASSETS.map(()=>true), quotes:[], risk:0, lean:0, stance:'balanced', press:0, cooldown:0, fees:0, option:null,stats:{requests:0,unfilled:0,crossUnits:0} }; }
 export function createDay(cards = [], seed = 12345, rival = ['maker', 'research'], option = null, options = {}) {
   const scenario=options.scenario || scenarioFor(seed);
   if(!SCENARIOS[scenario])throw new Error('Unknown game scenario');
-  const s = { seed,scenario,conditions:SCENARIOS[scenario],tick:0,random:rng(seed),marketRandom:rng(seed+100003),assetRandom:ASSETS.map((_,a)=>rng(seed+400003+a*1009)),flowRandom:rng(seed+200003),prices:ASSETS.map(a=>a.price),previous:ASSETS.map(a=>a.price),history:ASSETS.map(a=>[a.price]),firms:[firm(cards),firm(rival)],events:[],done:false };
+  const board=boardConfig(options.board);
+  const s = { seed,board,pendingJobs:[],scenario,conditions:SCENARIOS[scenario],tick:0,random:rng(seed),marketRandom:rng(seed+100003),assetRandom:ASSETS.map((_,a)=>rng(seed+400003+a*1009)),flowRandom:rng(seed+200003),prices:ASSETS.map(a=>a.price),previous:ASSETS.map(a=>a.price),history:ASSETS.map(a=>[a.price]),firms:[firm(cards,board),firm(rival,board)],events:[],done:false };
   if(options.enabled) s.firms[0].enabled=ASSETS.map((_,a)=>options.enabled[a]!==false);
   s.firms[0].option = option;
   if (option) s.firms[0].cash -= 8;
   s.fundamentals=[...s.prices];s.fundamentalHistory=s.prices.map(p=>[p]);s.observationRandom=rng(seed+800003);s.pendingSignals=[];s.eventSequence=0;s.replay=[];
-  s.firms.forEach(f=>{f.beliefs=[...s.prices];f.signalSources=[];f.contracts=[];});
+  s.firms.forEach((f,i)=>{f.beliefs=[...s.prices];f.signalSources=[];f.contracts=[];f.researchRandoms=Object.fromEntries(f.units.map(u=>{let hash=0;for(const c of unitKey(u))hash=(hash*31+c.charCodeAt(0))|0;return [unitKey(u),rng(seed+900003+i*1009+hash)];}));});
   s.firms.forEach((f,side)=>f.units.filter(u=>u.id==='specialist').forEach(u=>{
     const qty=3*unitGrade(u),premium=qty*1.6,source={id:u.id,uid:u.uid??null};
     f.cash-=premium;f.contracts.push({source,qty,premium,strike:100,asset:0});
@@ -94,14 +97,20 @@ export function hedge(s, index, full = false, limit = s.firms[index].config.hedg
     const cut = full ? q : Math.abs(q)>limit+buffer?Math.sign(q)*Math.max(0,Math.abs(q)-limit):0;
     if (cut) {
       const defenders=f.units.filter(u=>byId(u.id)?.capability==='hedge');
-      const defender=defenders[a%Math.max(1,defenders.length)];
+      const eligible=d=>[...f.supportLinks.filter(e=>e.kind==='risk'&&unitKey(e.source)===unitKey(d)).map(e=>unitKey(e.target)),'house'];
+      const defender=full?defenders[a%Math.max(1,defenders.length)]:[...defenders].sort((x,y)=>{
+        const quantity=d=>eligible(d).reduce((n,k)=>n+Math.max(0,(f.unitLedger[k]?.inv[a]||0)*Math.sign(cut)),0);return quantity(y)-quantity(x);
+      })[0];
+      const connected=!full&&defender?new Set(eligible(defender)):null;
       const slippage=defender&&eventType==='hedge'?.08/Math.sqrt(unitGrade(defender))*(1-traitLevel(f.config.counts.Risk||0,'Risk')*.15):f.config.hedgeCost;
-      const before=Math.abs(q), qty=Math.abs(cut), cost=qty*(slippage+.01);
+      const before=Math.abs(q), available=connected?[...connected].reduce((n,k)=>n+Math.max(0,(f.unitLedger[k]?.inv[a]||0)*Math.sign(cut)),0):Math.abs(cut),qty=Math.min(Math.abs(cut),available),cost=qty*(slippage+.01);
+      if(!qty)return;
       // External inventory changes invalidate the capacity reserved by resting orders.
       cancelFirmOrders(s,index,a);f.quotes=[];
       let remaining=qty;const affected=[];
       // Close the positions of the units that actually hold the exposure.
       for(const account of Object.values(f.unitLedger)) {
+        if(connected&&!connected.has(account.source?unitKey(account.source):'house'))continue;
         if(Math.sign(account.inv[a])!==Math.sign(cut))continue;
         const part=Math.min(remaining,Math.abs(account.inv[a]));if(!part)continue;
         trade(f,a,-Math.sign(cut)*part,s.prices[a]-Math.sign(cut)*slippage,part*.01,account.source);
@@ -129,7 +138,7 @@ function doCommand(s, action, asset = null) {
   if (action === 'hedge' && f.cards.includes('hedge')) { hedge(s, 0, true); f.cooldown = f.config.cooldownTicks; return true; }
   return false;
 }
-export function command(s,action,asset=null){const ok=doCommand(s,action,asset);stampEvents(s);return ok;}
+export function command(s,action,asset=null){const ok=doCommand(s,action,asset);if(ok)s.events.push({type:'command',action,asset,firm:0});stampEvents(s);return ok;}
 export function step(s) {
   if (s.done) return s;
   s.events = []; s.tick++; s.previous = [...s.prices];

@@ -1,0 +1,51 @@
+{
+  "runs": 50,
+  "method": "Actual shared-pool bot purchases, daily recruitment, star merging, each of seven bots versus its next neighbor. Same seeded five-day scenario schedule; no elimination, items, or human play. Matched seeds repeat across days and pairs.",
+  "rows": [
+    {
+      "day": 1,
+      "duels": 350,
+      "profitablePct": 92.4,
+      "meanPnL": 22.84,
+      "bothNonPositivePct": 0.3,
+      "averageDeployed": 3,
+      "markets": 3
+    },
+    {
+      "day": 2,
+      "duels": 350,
+      "profitablePct": 68.9,
+      "meanPnL": 7.22,
+      "bothNonPositivePct": 4.6,
+      "averageDeployed": 4,
+      "markets": 3
+    },
+    {
+      "day": 3,
+      "duels": 350,
+      "profitablePct": 67.1,
+      "meanPnL": 6.66,
+      "bothNonPositivePct": 11.1,
+      "averageDeployed": 5,
+      "markets": 4
+    },
+    {
+      "day": 4,
+      "duels": 350,
+      "profitablePct": 62.7,
+      "meanPnL": 6.18,
+      "bothNonPositivePct": 6.9,
+      "averageDeployed": 6,
+      "markets": 5
+    },
+    {
+      "day": 5,
+      "duels": 350,
+      "profitablePct": 8.6,
+      "meanPnL": -124.23,
+      "bothNonPositivePct": 82.9,
+      "averageDeployed": 7,
+      "markets": 5
+    }
+  ]
+}

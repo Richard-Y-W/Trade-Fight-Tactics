@@ -2,6 +2,7 @@ import { createDay, step, equity } from './engine.js';
 import { createPool,createCompany,refreshDay,buy,reroll,deployed,reserves,sell,releaseCompany,floorLimitFor } from './company.js';
 import { byId,traitCounts } from './roster.js';
 import { progression } from './progression.js';
+import { assignPositions } from './board.js';
 const isTrader=u=>!['hedge','research'].includes(byId(u.id).capability);
 export function selectBotFloor(company,preferences=[]) {
   const chosen=[],candidates=[...company.units];
@@ -16,6 +17,7 @@ export function selectBotFloor(company,preferences=[]) {
     candidates.sort((a,b)=>score(b)-score(a));chosen.push(candidates.shift());
   }
   company.units.forEach(u=>{u.deployed=chosen.includes(u);});
+  assignPositions(chosen,company.board);
 }
 export const makeLobby = (pool=createPool(),playerCompany=null,seed=1) => {
 const players=[

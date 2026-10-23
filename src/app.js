@@ -1,5 +1,9 @@
 import { createBattleReadout } from './battle-readout.js';
 import { createCombatFloor } from './floor-bridge.js';
+import { createDeploymentUI } from './board-ui.js';
+import { placeUnit,scoutSnapshot,assignPositions,boardConfig } from './board.js';
+import { OVERLAYS } from './board-overlays.js';
+import { supportKinds,SUPPORT } from './positioning.js';
 import { closingAnalysis,buildSummary } from './analytics.js';
 import { createMarketFeel } from './feel.js';
 import { progression } from './progression.js';
@@ -12,6 +16,16 @@ import { createCompany, deployed, reserves, buy, move, sell, sellValue, reroll, 
 import { makeLobby, prepareBots, botUnits, startExhibition, stepExhibition, settleExhibition, dayDamage } from './league.js';
 import { sceneMarkup, showUnitFeedback } from './unit-view.js';
 const $ = id => document.getElementById(id);
+// Move existing inspection systems rather than duplicating or discarding their data.
+function wrapDetails(id,title,nodes,parent){const box=document.createElement('details');box.id=id;const heading=document.createElement('summary');heading.textContent=title;box.append(heading);for(const n of nodes)if(n)box.append(n);parent.append(box);return box;}
+const rail=document.querySelector('.lobby');
+wrapDetails('scout-drawer','Opponent roster & scouting',[document.querySelector('.opponent-scout')],rail);
+wrapDetails('analytics-drawer','Follow the edge · unit inspection',[$('battle-readout'),$('build-summary'),$('closing-highlights'),document.querySelector('.debug-panel')],rail);
+const terminal=document.querySelector('.terminal');$('battle-actions').append($('start'),$('start-note'));
+wrapDetails('terminal-drawer','Control terminal',[terminal],rail).open=true;
+wrapDetails('roster-drawer','Active roster & unit details',[$('desk'),document.querySelector('.trait-benefit-panel')],document.querySelector('.arena'));
+const result=$('day-result');$('battle-actions').before(result);
+wrapDetails('markets-drawer','Market heatmap, prices & fills',[$('market-map')],document.querySelector('.arena'));
 const money = n => `${n < 0 ? '−' : '+'}$${Math.abs(n).toFixed(2)}`;
 const icons = {
   speed: '<path d="m8 22 12-15-3 12h11L16 34l3-12Z"/><path d="M5 12h7M3 18h6M5 28h7"/>',
@@ -28,10 +42,13 @@ const combatFloor=createCombatFloor(document);
 let matchSeed=Date.now()>>>0;
 let company=createCompany(matchSeed),lobby=makeLobby(company.pool,company,matchSeed),otherMatches=[],inspectPlayer='cobalt',selectedUnit=null;
 let cards = [], day = 1, week = 1, health = [100, 100], phase = 'prep', selected = 0;
-let state = createDay(), interval = null, paused = false, option = null, sound = false, audio = null;
+let state = createDay(), interval = null, openingTimeout = null, paused = false, option = null, sound = false, audio = null;
 let previousScores = [0, 0];
+let ghost=scoutSnapshot(lobby[1]),overlayMode='activity',boardSelection=null;
+const deployment=createDeploymentUI(document,{canEdit:()=>phase==='prep',onPlace:(uid,p)=>{if(phase!=='prep')return false;const ok=placeUnit(company,uid,p);if(ok)syncCompany();return ok;},onBench:uid=>{if(phase!=='prep')return false;const ok=placeUnit(company,uid,null);if(ok)syncCompany();return ok;},onSelect:selectBoardUnit});
+function selectBoardUnit(side,key){boardSelection={side,key};if(side&&phase==='prep'){const u=ghost.units.find(u=>String(u.uid??u.id)===key);if(u)inspectUnit(u.id,null,u.star);paintNumbers();return;}document.dispatchEvent(new window.CustomEvent('watch-unit',{detail:{side,key}}));$('analytics-drawer').open=true;paintNumbers();}
 let marketEnabled=ASSETS.map(()=>true);
-const sessionOptions=()=>({enabled:marketEnabled,activeMarkets:progression(week,day).markets,scenario:progression(week,day).scenario});
+const sessionOptions=()=>({board:company.board,enabled:marketEnabled,activeMarkets:progression(week,day).markets,scenario:progression(week,day).scenario});
 const daySeed=()=>(matchSeed+week*107+day*31)>>>0;
 
 function beep(pitch = 440, length = .06) {
@@ -57,15 +74,17 @@ function paintMap() {
   document.querySelectorAll('.asset').forEach(el => el.addEventListener('click', () => {
     selected = Number(el.dataset.asset);
     document.querySelectorAll('.asset').forEach(x => { const active = x === el; x.classList.toggle('selected', active); x.setAttribute('aria-pressed', String(active)); });
-    paintFocus(); beep(320);
+    paintNumbers(); beep(320);
   }));
+  $('market-selector').innerHTML=ASSETS.map((a,i)=>`<button class="secondary" data-market-select="${i}">${a.ticker}</button>`).join('');
+  $('market-selector').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{selected=Number(b.dataset.marketSelect);paintNumbers();}));
 }
 function paintDesk() {
   const floor = deployed(company), bench = reserves(company), editable = phase === 'prep';
   $('desk').style.setProperty('--floor-slots', company.floorLimit);
   const renderUnit = (u, active) => {
     const c = byId(u.id);
-    return `<article class="company-unit rarity-${c.tier} ${selectedUnit === u.uid ? 'chosen' : ''}" data-unit="${c.capability}" data-unit-id="${c.id}" data-star="${u.star}" data-instance="${u.uid}"><button class="unit-select" data-select="${u.uid}" aria-label="Select ${c.name}">${sceneMarkup(c,icon,active,phase==='live')}<span class="unit-stars">${'★'.repeat(u.star)} <small>${c.seniority}</small></span><b>${c.name}</b><span class="unit-traits"><span class="style-tag" data-tooltip-trait="${c.style}">${c.style}</span> · <span data-tooltip-trait="${c.specialty}">${c.specialty}</span></span><small class="unit-role">${c.combatRole}</small><small class="unit-metrics">Waiting for open</small></button><button class="unit-details" data-inspect="${c.id}" data-inspect-uid="${u.uid}">Read unit</button><div class="unit-actions"><button data-move="${u.uid}" ${!editable ? 'disabled' : ''}>${active ? 'To bench' : floor.length >= company.floorLimit ? 'Swap in' : 'Deploy'}</button><button data-sell="${u.uid}" ${!editable ? 'disabled' : ''} title="Sell for ${sellValue(u)} credits">${sellValue(u)} ◎ ↗</button></div></article>`;
+    return `<article class="company-unit rarity-${c.tier} ${selectedUnit === u.uid ? 'chosen' : ''}" draggable="false" data-unit="${c.capability}" data-unit-id="${c.id}" data-star="${u.star}" data-instance="${u.uid}"><button class="unit-select" data-select="${u.uid}" aria-label="Select ${c.name}">${sceneMarkup(c,icon,active,phase==='live')}<span class="unit-stars">${'★'.repeat(u.star)} <small>${c.seniority}</small></span><b>${c.name}</b><span class="unit-traits"><span class="style-tag" data-tooltip-trait="${c.style}">${c.style}</span> · <span data-tooltip-trait="${c.specialty}">${c.specialty}</span></span><small class="unit-role">${c.combatRole}</small><small class="unit-metrics">Waiting for open</small></button><button class="unit-details" data-inspect="${c.id}" data-inspect-uid="${u.uid}">Read unit</button><div class="unit-actions"><button data-move="${u.uid}" ${!editable ? 'disabled' : ''}>${active ? 'To bench' : floor.length >= company.floorLimit ? 'Swap in' : 'Deploy'}</button><button data-sell="${u.uid}" ${!editable ? 'disabled' : ''} title="Sell for ${sellValue(u)} credits">${sellValue(u)} ◎ ↗</button></div></article>`;
   };
   $('desk').innerHTML = floor.map(u => renderUnit(u,true)).join('') + Array.from({length:company.floorLimit-floor.length},() => '<div class="desk-slot"><span class="plus">+</span><span>DEPLOY A TRADER</span></div>').join('');
   $('bench').innerHTML = bench.map(u => renderUnit(u,false)).join('') + Array.from({length:company.benchLimit-bench.length},() => '<div class="bench-empty">+</div>').join('');
@@ -99,7 +118,7 @@ function paintDesk() {
 }
 function notice(text) { $('company-notice').textContent = text; }
 function syncCompany() {
-  state = createDay(deployed(company),daySeed(),undefined,null,sessionOptions()); cards = state.firms[0].cards; paintPrep();
+  state = createDay(deployed(company),daySeed(),botUnits(lobby[1],week),null,sessionOptions()); cards = state.firms[0].cards; paintPrep();
 }
 function paintIncome() {
   const income=incomeFor(company.credits),next=Math.max(0,Math.min(50,(income.interest+1)*10)-company.credits);
@@ -172,6 +191,7 @@ function paintNumbers() {
     previousScores[i] = score; $(id + '-flow').textContent = `${f.fills.reduce((n, x) => n + x, 0)} fills`; $(id + '-health').textContent = `${health[i]} HP`;
   });
   ASSETS.forEach((a, i) => {
+    const tab=document.querySelector(`[data-market-select="${i}"]`);tab.hidden=!state.active[i];tab.setAttribute('aria-pressed',String(selected===i));
     document.querySelector(`[data-asset="${i}"]`).hidden=!state.active[i];
     document.querySelector(`[data-asset="${i}"]`).classList.toggle('market-paused',!state.firms[0].enabled[i]);
     const p = state.prices[i], change = (p / a.price - 1) * 100;
@@ -189,7 +209,17 @@ function paintNumbers() {
   $('risk-sigma').textContent=`$${risk.sigma1s.toFixed(2)}`;$('risk-gross').textContent=`$${risk.gross.toFixed(0)}`;
   $('positions').innerHTML = ASSETS.map((a, i) => `<div class="position" ${state.active[i]?'':'hidden'}>${a.ticker}<b>${f.inv[i] >= 0 ? '+' : ''}${f.inv[i]}</b></div>`).join('');
   const remaining = Math.max(0, 40 - state.tick / 2); $('timer').textContent = `0:${String(Math.ceil(remaining)).padStart(2, '0')}`; $('timer').classList.toggle('urgent', phase === 'live' && remaining < 10);
-  paintFocus();paintUnitActivity(state);battleReadout.paint(state);combatFloor.paint(state);
+  paintFocus();paintUnitActivity(state);battleReadout.paint(state);
+  const opponent=phase==='prep'?ghost.units:state.firms[1].units;
+  document.body.dataset.battlePhase=phase;
+  combatFloor.paint(state,{phase,market:selected,overlay:overlayMode,opponent,selectedUnit:boardSelection?.key??selectedUnit,selectedSide:boardSelection?.side??0});
+  $('tactical-board').style.aspectRatio=`${state.board.cols}/${state.board.rows}`;
+  $('board-width').disabled=phase!=='prep';
+  deployment.paint({own:state.firms[0].units,bench:reserves(company),opponent,board:state.board});
+  $('overlay-metric').textContent=OVERLAYS[overlayMode];
+  const q=state.books[selected],bids=q.orders.filter(o=>o.side==='buy'),asks=q.orders.filter(o=>o.side==='sell');
+  $('exchange-status').textContent=`${ASSETS[selected].ticker} $${state.prices[selected].toFixed(2)} · ${bids.length?Math.max(...bids.map(o=>o.price))/100:'—'} / ${asks.length?Math.min(...asks.map(o=>o.price))/100:'—'}`;
+  $('scout-stamp').textContent=phase==='prep'?`${ghost.name} · snapshot W${ghost.week} D${ghost.day}`:'Final opponent deployment revealed';
   const summary=buildSummary(state);$('build-summary').innerHTML=[...summary.strengths.map(s=>`<span>${s}</span>`),...summary.weaknesses.map(s=>`<span class="build-caution">${s}</span>`)].join('');
 }
 function paintLobby() {
@@ -206,7 +236,7 @@ function paintLobby() {
   const config = buildConfig(units);
   const bench=player.you?reserves(company):reserves(player.company);
   $('lobby-inspect').innerHTML = `<span class="eyebrow">INSPECTING</span><h3>${player.name}</h3><b class="inspect-label">Floor</b><div class="inspect-units">${units.map(u => `<span class="rarity-${byId(u.id).tier}">${byId(u.id).name} ${'★'.repeat(u.star)}</span>`).join('') || '<span>Empty trading floor</span>'}</div><b class="inspect-label">Bench</b><div class="inspect-units">${bench.map(u=>`<span class="rarity-${byId(u.id).tier}">${byId(u.id).name} ${'★'.repeat(u.star)}</span>`).join('')||'<span>No reserves</span>'}</div><p>${Object.entries(config.counts).filter(([,n])=>n>=2).map(([t,n])=>`${t} (${n})`).join(' · ') || 'No active trait thresholds'}</p><small>Build inspection · actual shared-pool recruits</small>`;
-  document.querySelectorAll('[data-player]').forEach(b=>b.addEventListener('click',()=>{ inspectPlayer=b.dataset.player; paintLobby(); }));
+  document.querySelectorAll('[data-player]').forEach(b=>b.addEventListener('click',()=>{ inspectPlayer=b.dataset.player;if(phase==='prep'){const target=lobby.find(p=>p.id===inspectPlayer&&!p.you);if(target){assignPositions(deployed(target.company),target.company.board);ghost=scoutSnapshot(target,{day,week});paintNumbers();}} paintLobby(); }));
 }
 function paintOpponent() {
   const enemy=lobby[1],floor=deployed(enemy.company),bench=reserves(enemy.company),counts=traitCounts(floor);
@@ -230,7 +260,7 @@ function paintPrep() {
 }
 function begin() {
   if (phase !== 'prep' || !deployed(company).length) return;
-  phase = 'live'; paused = false;
+  phase = 'opening'; paused = false;
   const rival = botUnits(lobby[1],week), seed = daySeed();
   state = createDay(deployed(company),seed,rival,option,sessionOptions()); cards=state.firms[0].cards; option = null;
   marketFeel.reset(state);
@@ -239,7 +269,9 @@ function begin() {
   $('start').disabled = true; $('start').innerHTML = 'MARKET IS OPEN <span>●</span>'; $('phase-label').textContent = 'MARKET OPEN'; $('clock-label').textContent = 'TO THE CLOSE';
   $('start-note').textContent = 'Select a market. Your terminal controls the whole desk.'; $('pause').hidden = false; $('pause').textContent = 'Pause'; document.querySelector('.status-dot').classList.add('live');
   paintDesk(); paintShop(); paintControls(); paintNumbers(); paintLobby();paintOpponent(); beep(700, .2);
-  clearInterval(interval); interval = setInterval(tick, 500);
+  clearInterval(interval);$('phase-label').textContent='OPENING MARKET';$('pause').hidden=true;
+  const openingMs=$('reduce-effects').checked||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches?0:1200;
+  clearTimeout(openingTimeout);openingTimeout=setTimeout(()=>{if(phase!=='opening')return;phase='live';$('phase-label').textContent='MARKET OPEN';$('pause').hidden=false;paintControls();paintNumbers();interval=setInterval(tick,500);},openingMs);
 }
 function tick() {
   if (paused || phase !== 'live') return;
@@ -286,7 +318,7 @@ function closeDay() {
 function nextDay() {
   $('day-result').hidden=true; if (health.some(h => !h)) { reset(); return; }
   if (day === 5) { weekend(); return; }
-  day++; refreshDay(company,week,day);prepareBots(lobby,week,true,day); phase = 'prep'; state = createDay(deployed(company),daySeed(),undefined,null,sessionOptions()); cards=state.firms[0].cards; otherMatches=[]; previousScores = [0, 0]; paintPrep();
+  day++; refreshDay(company,week,day);prepareBots(lobby,week,true,day); phase = 'prep'; state = createDay(deployed(company),daySeed(),botUnits(lobby[1],week),null,sessionOptions()); cards=state.firms[0].cards; otherMatches=[]; previousScores = [0, 0]; paintPrep();
 }
 function weekend() {
   phase = 'weekend'; day = 6; paintWeek(); paintDesk(); paintControls();
@@ -296,12 +328,13 @@ function weekend() {
   $('shop').innerHTML = choices.map(([id, name, desc, img]) => `<button class="shop-card" data-option="${id}"><div class="card-top"><span>MONDAY EXPIRY</span><span class="cost">${id === 'skip' ? '$0' : '$8'}</span></div>${icon(img)}<h3>${name}</h3><p>${desc}</p><div class="card-bottom">SELECT & OPEN NEXT WEEK →</div></button>`).join('');
   $('start').disabled = true; $('start').innerHTML = 'CHOOSE BELOW <span>↓</span>'; $('start-note').textContent = 'One contract. Premium paid from Monday’s trading capital.'; $('ticker').innerHTML = '<span class="muted">MARKET CLOSED</span> Pick an option below. A new week awaits.';
   document.querySelectorAll('[data-option]').forEach(b => b.addEventListener('click', () => {
-    option = b.dataset.option === 'skip' ? null : b.dataset.option; week++; day = 1; refreshDay(company,week,day);prepareBots(lobby,week,true,day); phase = 'prep'; state = createDay(deployed(company),daySeed(),undefined,null,sessionOptions()); cards=state.firms[0].cards; otherMatches=[]; previousScores = [0, 0]; paintPrep(); beep(520);
+    option = b.dataset.option === 'skip' ? null : b.dataset.option; week++; day = 1; refreshDay(company,week,day);prepareBots(lobby,week,true,day); phase = 'prep'; state = createDay(deployed(company),daySeed(),botUnits(lobby[1],week),null,sessionOptions()); cards=state.firms[0].cards; otherMatches=[]; previousScores = [0, 0]; paintPrep(); beep(520);
   }));
 }
 function reset() {
-  clearInterval(interval);marketFeel.reset(state);matchSeed=Date.now()>>>0;company=createCompany(matchSeed);lobby=makeLobby(company.pool,company,matchSeed); otherMatches=[]; selectedUnit=null; cards = []; day = 1; week = 1; health = [100, 100]; phase = 'prep'; option = null; paused = false; previousScores = [0, 0];
-  marketEnabled=ASSETS.map(()=>true);state=createDay([],daySeed(),undefined,null,sessionOptions()); $('rival-build').textContent = 'Spread Engine / Signal Lab'; paintMap(); paintPrep();
+  clearTimeout(openingTimeout);
+  clearInterval(interval);marketFeel.reset(state);matchSeed=Date.now()>>>0;company=createCompany(matchSeed);lobby=makeLobby(company.pool,company,matchSeed);ghost=scoutSnapshot(lobby[1]); otherMatches=[]; selectedUnit=null; cards = []; day = 1; week = 1; health = [100, 100]; phase = 'prep'; option = null; paused = false; previousScores = [0, 0];
+  marketEnabled=ASSETS.map(()=>true);state=createDay([],daySeed(),botUnits(lobby[1],week),null,sessionOptions()); $('rival-build').textContent = 'Spread Engine / Signal Lab'; paintMap(); paintPrep();
   notice('Recruit to your bench, then deploy. Three matching copies merge automatically.');
 }
 function inspectUnit(id,uid,star=1) {
@@ -314,9 +347,10 @@ function inspectUnit(id,uid,star=1) {
   $('unit-tags').innerHTML=c.tags.map(tag=>`<span>${tag}</span>`).join('');
   $('unit-portrait').innerHTML=sceneMarkup(c,icon,false,false);
   $('unit-portrait').querySelector('.unit-cue').textContent='ROLE ILLUSTRATION';
+  const researchLevel=traitLevel(config.counts.Research||0,'Research'),researchHalfWidth=.09/unitGrade({id,star:owned?.star||star})*(researchLevel===2?.55:researchLevel?.75:1);
   const technical={
     maker:`Quotes both sides around an estimated price, skewed by inventory. The ${owned?.deployed?'deployed desk':'unit-alone preview'} refresh interval is ${config.cadence/2}s. Fills can capture a spread or lose against changing marks.`,
-    research:`Estimates hidden underlying value with noise half-width $${(config.noise/2).toFixed(3)}. Entry researchers observe with one tick of delay; higher tiers observe current value with error. Quotes use the delivered estimate, never future values. Next-move accuracy is a proxy, not proof of causal profit.`,
+    research:`This source observes hidden value with noise half-width $${researchHalfWidth.toFixed(3)}. Only linked traders receive it; connected independent estimates combine with squared-grade weights. Entry sources are one tick late; higher tiers observe current value with error. No future outcomes are read. Next-move accuracy is a proxy, not causal profit.`,
     hedge:`Automatically trims inventory above ${config.hedgeThreshold} units. Per-unit hedge slippage is $${config.hedgeCost.toFixed(3)}, plus a $0.01 fee. New customer orders can rebuild exposure. It does not block trades or cancel health damage.`,
     manual:`Press uses a $0.055 half-spread for ${config.pressTicks/2}s. Its shared intervention cooldown is ${config.cooldownTicks/2}s. During Press, this unit submits immediate-or-cancel orders at its chosen limits; unmatched quantity expires.`,
     sizing:`The ${owned?.deployed?'current desk':'unit-alone preview'} can quote ${config.size} units per side in Balanced stance and hold at most ${config.capacity} units per asset. The unit places two price levels; inventory limits are enforced across the whole firm.`,
@@ -325,6 +359,7 @@ function inspectUnit(id,uid,star=1) {
   const policyTechnical=id==='specialist'?'Buys a NOVA straddle at the opening: quantity 3 × grade; premium $1.60 per quantity. Pays quantity × abs(close − $100) at expiry. No intraday option value. Does not submit quotes or unlock Press.':id==='clerk'?'Blocks position-increasing new offers when absolute inventory exceeds 18 units. Existing offers can still fill; emergency hedge closes positions for an explicit cost.':technical[c.capability];
   $('unit-technical').textContent=`${policyTechnical} Star ${owned?.star||star}: grade ${unitGrade({id,star:owned?.star||star}).toFixed(2)}. ${starBenefit(id)} Each extra star adds 0.25 grade; profits are not guaranteed.`;
   $('unit-scope').textContent=`${c.combatRole}: ${c.counter} Trading units own their orders and position streams. Research and protection support the firm; their activity counters show actual estimates or exposure trimmed.`;
+  const localRoles=supportKinds({id});if(localRoles.length)$('unit-scope').textContent+=` Local roles: ${localRoles.map(kind=>`${kind}: range ${SUPPORT[kind].range}, up to ${SUPPORT[kind].capacity} targets`).join('; ')}. Manager and engineer effects require eligible routed jobs; coverage does not guarantee use or profit.`;
   $('unit-advanced').open=false; $('unit-dialog').showModal();
 }
 document.addEventListener('click',event=>{const button=event.target.closest?.('[data-inspect]');if(button)inspectUnit(button.dataset.inspect,button.dataset.inspectUid,Number(button.dataset.inspectStar)||1);});
@@ -353,10 +388,13 @@ document.addEventListener('keydown', e => {
   if (e.repeat || e.altKey || e.ctrlKey || e.metaKey || document.querySelector('dialog[open]') || ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
   const b = document.querySelector(`[data-key="${e.key}"]`); if (b && !b.disabled) { e.preventDefault(); b.click(); }
 });
-state=createDay(deployed(company),daySeed(),undefined,null,sessionOptions());cards=state.firms[0].cards;
+state=createDay(deployed(company),daySeed(),botUnits(lobby[1],week),null,sessionOptions());cards=state.firms[0].cards;
 initializeTooltips(document,{counts:()=>traitCounts(deployed(company)),credits:()=>company.credits});
 initializeCatalog({document,icon,onInspect:id=>inspectUnit(id),onOpen:()=>{if(phase==='live'&&!paused)$('pause').click();}});
 paintMap(); paintPrep();
+$('board-overlay').addEventListener('change',()=>{overlayMode=$('board-overlay').value;paintNumbers();});
+$('board-width').addEventListener('change',()=>{if(phase!=='prep')return;company.board=boardConfig({cols:Number($('board-width').value)});assignPositions(deployed(company),company.board);syncCompany();notice('Board geometry updated; any out-of-bounds units moved to available tiles.');});
+document.addEventListener('click',e=>{if(e.target.closest?.('[data-select]'))$('analytics-drawer').open=true;});
 $('reduce-effects').addEventListener('change',()=>{document.body.classList.toggle('less-motion',$('reduce-effects').checked);if($('reduce-effects').checked)document.querySelectorAll('.unit-clash,.market-flight,.floating,.pnl-burst').forEach(n=>n.remove());});
 document.addEventListener('mouseover',e=>{
   const chip=e.target.closest?.('[data-trait]');if(!chip)return;

@@ -1,0 +1,416 @@
+{
+  "method": "Four five-unit reference compositions, clustered/dispersed positions, 20 common seeds, both seats, three authored regimes, identical autonomous controls, all markets, versus clustered HFT. Costs differ; these are formation/behavior diagnostics, not an equal-cost meta or independent statistical trial. Manager composition deliberately duplicates manager identities. No human skill or fun is measured.",
+  "duels": 960,
+  "rosters": {
+    "HFT": [
+      "execution",
+      "liquidity",
+      "maker",
+      "router",
+      "agency-pm"
+    ],
+    "Research": [
+      "execution",
+      "research",
+      "analyst",
+      "adaptive",
+      "router"
+    ],
+    "Defensive": [
+      "maker",
+      "clerk",
+      "hedge",
+      "treasury",
+      "value-pm"
+    ],
+    "Managers": [
+      "maker",
+      "treasury",
+      "treasury",
+      "treasury",
+      "treasury"
+    ]
+  },
+  "cluster": [
+    {
+      "col": 3,
+      "row": 0
+    },
+    {
+      "col": 4,
+      "row": 1
+    },
+    {
+      "col": 2,
+      "row": 1
+    },
+    {
+      "col": 3,
+      "row": 2
+    },
+    {
+      "col": 4,
+      "row": 0
+    }
+  ],
+  "dispersed": [
+    {
+      "col": 0,
+      "row": 3
+    },
+    {
+      "col": 7,
+      "row": 3
+    },
+    {
+      "col": 0,
+      "row": 0
+    },
+    {
+      "col": 7,
+      "row": 0
+    },
+    {
+      "col": 4,
+      "row": 2
+    }
+  ],
+  "rows": [
+    {
+      "composition": "HFT",
+      "formation": "cluster",
+      "scenario": "calm",
+      "duels": 40,
+      "meanPnL": 42.177770460337385,
+      "winPct": 50,
+      "meanFees": 6.564813403482567,
+      "meanDrawdown": 3.7889184991670843,
+      "meanFills": 675.5,
+      "meanQuoteUpdates": 1985,
+      "meanRoutingMs": 300,
+      "supportEvents": 6400
+    },
+    {
+      "composition": "HFT",
+      "formation": "dispersed",
+      "scenario": "calm",
+      "duels": 40,
+      "meanPnL": 24.670856137708505,
+      "winPct": 0,
+      "meanFees": 6.219565259168168,
+      "meanDrawdown": 7.6427413733392315,
+      "meanFills": 682.85,
+      "meanQuoteUpdates": 1960,
+      "meanRoutingMs": 800,
+      "supportEvents": 0
+    },
+    {
+      "composition": "Research",
+      "formation": "cluster",
+      "scenario": "calm",
+      "duels": 40,
+      "meanPnL": 74.11439814401406,
+      "winPct": 100,
+      "meanFees": 6.531764269937161,
+      "meanDrawdown": 5.5893823628468455,
+      "meanFills": 756,
+      "meanQuoteUpdates": 800,
+      "meanRoutingMs": 0,
+      "supportEvents": 3200
+    },
+    {
+      "composition": "Research",
+      "formation": "dispersed",
+      "scenario": "calm",
+      "duels": 40,
+      "meanPnL": -10.024315357417526,
+      "winPct": 0,
+      "meanFees": 4.813213567039015,
+      "meanDrawdown": 16.87608242242113,
+      "meanFills": 436.7,
+      "meanQuoteUpdates": 775,
+      "meanRoutingMs": 1250,
+      "supportEvents": 0
+    },
+    {
+      "composition": "Defensive",
+      "formation": "cluster",
+      "scenario": "calm",
+      "duels": 40,
+      "meanPnL": 26.121421991740682,
+      "winPct": 0,
+      "meanFees": 2.0547499999999954,
+      "meanDrawdown": 2.4498397067624866,
+      "meanFills": 410.95,
+      "meanQuoteUpdates": 205,
+      "meanRoutingMs": 0,
+      "supportEvents": 0
+    },
+    {
+      "composition": "Defensive",
+      "formation": "dispersed",
+      "scenario": "calm",
+      "duels": 40,
+      "meanPnL": 0.6940554231649912,
+      "winPct": 0,
+      "meanFees": 0.8912500000000001,
+      "meanDrawdown": 9.350662727575308,
+      "meanFills": 178.25,
+      "meanQuoteUpdates": 195,
+      "meanRoutingMs": 1500,
+      "supportEvents": 0
+    },
+    {
+      "composition": "Managers",
+      "formation": "cluster",
+      "scenario": "calm",
+      "duels": 40,
+      "meanPnL": 26.48298808308609,
+      "winPct": 0,
+      "meanFees": 1.9727499999999942,
+      "meanDrawdown": 2.8728521687196915,
+      "meanFills": 394.55,
+      "meanQuoteUpdates": 205,
+      "meanRoutingMs": 0,
+      "supportEvents": 0
+    },
+    {
+      "composition": "Managers",
+      "formation": "dispersed",
+      "scenario": "calm",
+      "duels": 40,
+      "meanPnL": 0.4946513606159897,
+      "winPct": 0,
+      "meanFees": 0.8437500000000007,
+      "meanDrawdown": 10.992748323867271,
+      "meanFills": 168.75,
+      "meanQuoteUpdates": 195,
+      "meanRoutingMs": 1500,
+      "supportEvents": 0
+    },
+    {
+      "composition": "HFT",
+      "formation": "cluster",
+      "scenario": "trend",
+      "duels": 40,
+      "meanPnL": -40.14595188418498,
+      "winPct": 50,
+      "meanFees": 6.920347711510251,
+      "meanDrawdown": 48.99596472422513,
+      "meanFills": 781.075,
+      "meanQuoteUpdates": 1985,
+      "meanRoutingMs": 300,
+      "supportEvents": 6400
+    },
+    {
+      "composition": "HFT",
+      "formation": "dispersed",
+      "scenario": "trend",
+      "duels": 40,
+      "meanPnL": -115.68685506257717,
+      "winPct": 0,
+      "meanFees": 6.825648963523202,
+      "meanDrawdown": 120.3600014140457,
+      "meanFills": 862.825,
+      "meanQuoteUpdates": 1960,
+      "meanRoutingMs": 800,
+      "supportEvents": 0
+    },
+    {
+      "composition": "Research",
+      "formation": "cluster",
+      "scenario": "trend",
+      "duels": 40,
+      "meanPnL": 250.5795012251107,
+      "winPct": 100,
+      "meanFees": 6.125570575350044,
+      "meanDrawdown": 8.900202218304731,
+      "meanFills": 670.025,
+      "meanQuoteUpdates": 800,
+      "meanRoutingMs": 0,
+      "supportEvents": 3200
+    },
+    {
+      "composition": "Research",
+      "formation": "dispersed",
+      "scenario": "trend",
+      "duels": 40,
+      "meanPnL": -103.16100590150627,
+      "winPct": 0,
+      "meanFees": 5.120782156950286,
+      "meanDrawdown": 106.21870437341477,
+      "meanFills": 501.8,
+      "meanQuoteUpdates": 775,
+      "meanRoutingMs": 1250,
+      "supportEvents": 0
+    },
+    {
+      "composition": "Defensive",
+      "formation": "cluster",
+      "scenario": "trend",
+      "duels": 40,
+      "meanPnL": -9.323036291286462,
+      "winPct": 45,
+      "meanFees": 1.942499999999995,
+      "meanDrawdown": 18.63261261184898,
+      "meanFills": 381.9,
+      "meanQuoteUpdates": 204.6,
+      "meanRoutingMs": 0,
+      "supportEvents": 0
+    },
+    {
+      "composition": "Defensive",
+      "formation": "dispersed",
+      "scenario": "trend",
+      "duels": 40,
+      "meanPnL": -197.85469501155293,
+      "winPct": 0,
+      "meanFees": 1.2072499999999993,
+      "meanDrawdown": 201.71005360589106,
+      "meanFills": 241.45,
+      "meanQuoteUpdates": 195,
+      "meanRoutingMs": 1500,
+      "supportEvents": 0
+    },
+    {
+      "composition": "Managers",
+      "formation": "cluster",
+      "scenario": "trend",
+      "duels": 40,
+      "meanPnL": -15.878846849299226,
+      "winPct": 30,
+      "meanFees": 1.845249999999997,
+      "meanDrawdown": 24.42654840312489,
+      "meanFills": 363.95,
+      "meanQuoteUpdates": 204.7,
+      "meanRoutingMs": 0,
+      "supportEvents": 0
+    },
+    {
+      "composition": "Managers",
+      "formation": "dispersed",
+      "scenario": "trend",
+      "duels": 40,
+      "meanPnL": -214.11152150232547,
+      "winPct": 0,
+      "meanFees": 1.1909999999999994,
+      "meanDrawdown": 217.8634599161989,
+      "meanFills": 238.2,
+      "meanQuoteUpdates": 195,
+      "meanRoutingMs": 1500,
+      "supportEvents": 0
+    },
+    {
+      "composition": "HFT",
+      "formation": "cluster",
+      "scenario": "shock",
+      "duels": 40,
+      "meanPnL": -44.38318406558856,
+      "winPct": 50,
+      "meanFees": 5.843894559144168,
+      "meanDrawdown": 52.46017488827029,
+      "meanFills": 461.425,
+      "meanQuoteUpdates": 1985,
+      "meanRoutingMs": 300,
+      "supportEvents": 6400
+    },
+    {
+      "composition": "HFT",
+      "formation": "dispersed",
+      "scenario": "shock",
+      "duels": 40,
+      "meanPnL": -91.9180589465088,
+      "winPct": 0,
+      "meanFees": 6.011110855503343,
+      "meanDrawdown": 100.11749494671417,
+      "meanFills": 620.95,
+      "meanQuoteUpdates": 1960,
+      "meanRoutingMs": 800,
+      "supportEvents": 0
+    },
+    {
+      "composition": "Research",
+      "formation": "cluster",
+      "scenario": "shock",
+      "duels": 40,
+      "meanPnL": 57.601629825573994,
+      "winPct": 100,
+      "meanFees": 4.59469634576477,
+      "meanDrawdown": 15.677462998377678,
+      "meanFills": 346,
+      "meanQuoteUpdates": 800,
+      "meanRoutingMs": 0,
+      "supportEvents": 3200
+    },
+    {
+      "composition": "Research",
+      "formation": "dispersed",
+      "scenario": "shock",
+      "duels": 40,
+      "meanPnL": -98.80923138754024,
+      "winPct": 0,
+      "meanFees": 4.948099638344187,
+      "meanDrawdown": 103.94863751367829,
+      "meanFills": 465.25,
+      "meanQuoteUpdates": 775,
+      "meanRoutingMs": 1250,
+      "supportEvents": 0
+    },
+    {
+      "composition": "Defensive",
+      "formation": "cluster",
+      "scenario": "shock",
+      "duels": 40,
+      "meanPnL": -17.189965369328547,
+      "winPct": 90,
+      "meanFees": 1.178,
+      "meanDrawdown": 24.596829156525473,
+      "meanFills": 235.6,
+      "meanQuoteUpdates": 205,
+      "meanRoutingMs": 0,
+      "supportEvents": 0
+    },
+    {
+      "composition": "Defensive",
+      "formation": "dispersed",
+      "scenario": "shock",
+      "duels": 40,
+      "meanPnL": -33.61750272203981,
+      "winPct": 70,
+      "meanFees": 1.093,
+      "meanDrawdown": 47.55954534785851,
+      "meanFills": 218.6,
+      "meanQuoteUpdates": 195,
+      "meanRoutingMs": 1500,
+      "supportEvents": 0
+    },
+    {
+      "composition": "Managers",
+      "formation": "cluster",
+      "scenario": "shock",
+      "duels": 40,
+      "meanPnL": -18.089002632808114,
+      "winPct": 80,
+      "meanFees": 1.1072499999999996,
+      "meanDrawdown": 26.849485829597416,
+      "meanFills": 220.65,
+      "meanQuoteUpdates": 204.95,
+      "meanRoutingMs": 0,
+      "supportEvents": 0
+    },
+    {
+      "composition": "Managers",
+      "formation": "dispersed",
+      "scenario": "shock",
+      "duels": 40,
+      "meanPnL": -30.232256632599274,
+      "winPct": 75,
+      "meanFees": 1.0725000000000002,
+      "meanDrawdown": 46.68816027927596,
+      "meanFills": 214.5,
+      "meanQuoteUpdates": 195,
+      "meanRoutingMs": 1500,
+      "supportEvents": 0
+    }
+  ]
+}

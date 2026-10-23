@@ -1,5 +1,7 @@
 # Financial model: current combat pass
 
+The battlefield pass adds local information delivery, actual routing latency, local automatic hedging, support costs and volatility/delay-aware passive spreads. Prefer [positioning-mechanics.md](positioning-mechanics.md) and [financial-consistency.md](financial-consistency.md) for those rules. Base ledger, hidden/public value, expiry and covariance formulas below remain applicable. Support-only firms no longer generate house quotes; old firm-wide support descriptions are superseded.
+
 ## Information boundary
 
 The original seeded additive common-factor process now evolves hidden value `s.fundamentals`. Public valuation marks `s.prices` observe the previous tick's hidden value plus independent uniform noise in [-$0.04,$0.04]. Both processes have a $5 lower boundary. Asset paths remain independent of recruited units and commands. This is an authored game observation model, not fitted market price discovery.

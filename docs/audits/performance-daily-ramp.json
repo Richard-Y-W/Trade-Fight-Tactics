@@ -1,8 +1,8 @@
 {
   "scope": "Simulation only: four simultaneous duels, seven units per side, five active markets. First ten groups excluded for warm-up; no rendering, audio, or DOM effects.",
   "samples": 7200,
-  "meanMs": 1.1703816250000088,
-  "p95Ms": 2.0359000000003107,
-  "p99Ms": 3.8854000000010274,
+  "meanMs": 1.98218333333334,
+  "p95Ms": 3.44419999999991,
+  "p99Ms": 6.177000000000589,
   "gameTickMs": 500
 }
