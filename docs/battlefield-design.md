@@ -1,3 +1,9 @@
+# Current shared regional floor
+
+The mirrored-half design below is historical. The current browser uses one 8 x 8 floor: exact contiguous product regions (14 equities, 16 options, 14 rates, 10 commodities, 6 FX, 4 credit). Both firms can occupy the same tile in separate deterministic subslots. Units route to real instruments by tile; locked/unsupported deployment is rejected. [Current rules](regional-market-architecture.md), [UX/tests](regional-ux-and-validation.md).
+
+---
+
 # Battlefield redesign: audit and architecture
 
 Starting point: 60 headless tests and three browser checks; retained PixiJS character/workstation system, persistent shared FIFO books, accounting, hidden/public observations, 32-unit pool, bench, merging, interest and 40-second days. Existing floor is two fixed rows with no persistent positions; support is firm-wide and diagnostics dominate vertical space.

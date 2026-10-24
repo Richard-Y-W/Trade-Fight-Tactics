@@ -1,3 +1,9 @@
+# Regional accounting update
+
+Current profile adds instrument tick scales and contract multipliers; option expiry is intrinsic settlement, FX quotes are pip-sized. Current regional and unit net P&L reconcile to firm equity after fees, with the separate weekend ticket explicitly outside unit attribution. [Current model and risk limitations](regional-market-architecture.md). Prior checks below remain historical context.
+
+---
+
 # Financial consistency of the battlefield pass
 
 The existing matching, basis/reversal accounting, marked equity, option expiry, costs and covariance model remain the financial foundation. See [financial-model.md](financial-model.md) for formulas, with local delivery/routing superseded by [positioning-mechanics.md](positioning-mechanics.md).

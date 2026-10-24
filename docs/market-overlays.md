@@ -1,3 +1,11 @@
+# Shared-region overlays
+
+The six market colors are identity colors, not positive/negative returns. Board overlays retain actual per-unit activity, marked account net, contract-scaled gross exposure, contests and selected-product fills. Region captions show your/rival net product P&L including allocated costs. Area never weights any of these metrics. [Current details](regional-market-architecture.md).
+
+Historical notes follow.
+
+---
+
 # Board overlays versus market heatmaps
 
 `board-overlays.js` maps measured account/event values to the owning unit's current tile, mirrored for the rival. No value is inferred from which firm is winning. Intensity is normalized to the largest absolute displayed value; it compares current board units, not an absolute score across different days.

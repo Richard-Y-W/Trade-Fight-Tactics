@@ -1,0 +1,40 @@
+{
+  "scope": "360 actual drafted-bot duels through the full regional week; real shared pool, income and upgrades. 24 seeds, three pairings/day, no human player. Checks final regional accounting; not a seat-balanced tournament.",
+  "byDay": [
+    {
+      "day": 1,
+      "duels": 72,
+      "meanPnl": 6.926403507775325,
+      "profitable": 0.7986111111111112,
+      "bothNonPositive": 0.041666666666666664
+    },
+    {
+      "day": 2,
+      "duels": 72,
+      "meanPnl": -2.7999673249507975,
+      "profitable": 0.5833333333333334,
+      "bothNonPositive": 0.19444444444444445
+    },
+    {
+      "day": 3,
+      "duels": 72,
+      "meanPnl": 85.78131456680974,
+      "profitable": 0.7638888888888888,
+      "bothNonPositive": 0.06944444444444445
+    },
+    {
+      "day": 4,
+      "duels": 72,
+      "meanPnl": 56.79268384807406,
+      "profitable": 0.8402777777777778,
+      "bothNonPositive": 0.013888888888888888
+    },
+    {
+      "day": 5,
+      "duels": 72,
+      "meanPnl": -139.78556973826835,
+      "profitable": 0.125,
+      "bothNonPositive": 0.7638888888888888
+    }
+  ]
+}

@@ -1,3 +1,15 @@
+# Current shared-market implementation - 2026-10-23
+
+Implemented a viewport-sized three-column shell, exact irregular shared 8 x 8 floor, real six-product model and progressive unlocks, eligible market assignment, distinct contract/tick accounting, actual-event regional gateways, deterministic dual ownership slots, 1.2s reveal and closing fade, readable badges and hover inspection, explicit fallback, advanced factor-risk inspection and bounded primary controls. Existing recruitment, pool, bench, merges, interest, traits, paid interventions, weekend tickets and historical headless fixtures remain.
+
+Validation: 79 Node tests passed, covering ten new regional financial/board regressions. Six Edge browser journeys passed, including real-time recording, complete week, placement, reduced motion, missing art and all three desktop geometries including the fallback/keyboard check. Current screenshots and JSON event replays are under docs/media. [Detailed UX/test protocol](regional-ux-and-validation.md).
+
+The regional audit completed 576 paired-seat duels / 46,080 ticks, checking financial reconciliation throughout. Mean simulation step ~0.107ms, p95 ~0.195ms on this machine, excluding browser rendering. [Actual audit](audits/regional-markets.json). Composition costs/floor sizes differ: calm HFT +$16.36 mean, options +$6.68; directional diversified -$223.84 mean; credit/default and options create large tails. The additional [360 actual drafted-bot duels](audits/regional-bots.json) show 79.9/58.3/76.4/84.0/12.5% profitable firm results across Monday-Friday. Friday mean is -$139.79 and both firms are non-positive in 76.4% of those Friday duels: stress-day tuning is still too punishing. This is not healthy-balance certification. [Real-time browser frame intervals](audits/browser-frame-times.json) are separately measured with recording overhead and are not GPU/FPS guarantees.
+
+Remaining: margin/capital constraints, financing/borrow, calibrated multi-factor risk/impact, broader product sets, complete derivatives hedging, more capital-aware AI, human beginner readability testing, item expansion and network multiplayer. No claim of institutional accuracy or completed human playtesting. Full named-file change map, model migration and simplifications: [regional architecture](regional-market-architecture.md).
+
+## Earlier iterations (historical)
+
 # Combat overhaul: implementation results
 
 ## Current battlefield pass

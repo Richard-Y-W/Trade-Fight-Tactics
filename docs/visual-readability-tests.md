@@ -1,3 +1,9 @@
+# Current regional iteration: Readability verification
+
+The browser now uses the shared six-market floor, deterministic ownership subslots, market-assigned quotes/research, a marked daily ETF call and duration/spread/pip-aware instruments. Unit roles and finite support are preserved; the Volatility PM now quotes calls, and Relative Value Lead trades the rates/credit relationship when both markets are open. See [regional architecture](regional-market-architecture.md) and [UX, animation vocabulary and current tests](regional-ux-and-validation.md). Human beginner readability testing remains unperformed. Historical notes follow.
+
+---
+
 # Battlefield validation and human readability
 
 Automated commands: `npm test`, `npm run check:battlefield`, `npm run test:e2e`, `npm run audit:battlefield`, `npm run benchmark:market`. Browser tests use installed Edge and include pointer drag from bench, swaps, return to bench, alternate geometry, scouting, opening timer/formation continuity, market switching, compact layout, missing sprites, reduced effects and a full five-day/weekend journey. Financial tests remain separate from rendering.

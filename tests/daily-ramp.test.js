@@ -10,8 +10,8 @@ import { Window } from 'happy-dom';
 
 test('beta daily ramp opens the specified slots, markets and shop tiers without regressing later',()=>{
   assert.deepEqual([1,2,3,4,5].map(d=>progression(1,d).slots),[3,4,5,6,7]);
-  assert.deepEqual([1,2,3,4,5].map(d=>progression(1,d).markets),[3,3,4,5,5]);
-  assert.equal(progression(2,1).slots,7);assert.equal(progression(2,1).markets,5);
+  assert.deepEqual([1,2,3,4,5].map(d=>progression(1,d).markets),[1,2,4,5,6]);
+  assert.equal(progression(2,1).slots,7);assert.equal(progression(2,1).markets,6);
   assert.ok(100-5*dayDamage(0,1000)>0,'a firm can experience the full first-week ramp');
 });
 test('unopened markets cannot quote, match, receive customer flow or be toggled on',()=>{
@@ -32,7 +32,7 @@ test('bot floors use real daily capacity and avoid filling the floor with only s
 });
 test('both exhibition sides have active AI and do not blindly Press an empty opportunity set',()=>{
   const c=createCompany(4),lobby=makeLobby(c.pool,c,4),matches=startExhibition(lobby,1,4,1);
-  for(const match of matches){assert.ok(match.state.firms.every(f=>f.autopilot));assert.equal(match.state.active.filter(Boolean).length,3);}
+  for(const match of matches){assert.ok(match.state.firms.every(f=>f.autopilot));assert.equal(match.state.active.filter(Boolean).length,1);}
   const s=createDay(['manual'],4,['manual'],null,{autopilot:[true,true]});step(s);
   assert.ok(!s.events.some(e=>e.type==='press'),'new passive quotes alone are not an edge worth crossing');
 });

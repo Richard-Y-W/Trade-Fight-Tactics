@@ -1,5 +1,5 @@
 // Bounded presentation model shared by Pixi and headless tests.
-export function animationFor(event){return event.type==='signal_result'?(event.correct?'synergy':'stress'):event.type==='contest'?'synergy':event.type==='limit'||event.type==='guard'?'stress':event.type==='fill'?(event.edge*event.qty-(event.fee||0)>=0?'success':'stress'):'action';}
+export function animationFor(event){return event.type==='signal_result'?(event.correct?'synergy':'stress'):event.type==='contest'?'synergy':event.type==='limit'||event.type==='guard'?'stress':event.type==='fill'?(event.edge-(event.fee||0)>=0?'success':'stress'):'action';}
 export function selectVisualEvents(events,{limit=10,reduced=false}={}) {
   if(reduced)return [];
   const priority={hedge:9,contest:8,guard:7,signal_result:6,fill:5,quote:3,signal:2,option:10,support_applied:7,order_routed:1,cancel:1};

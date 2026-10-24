@@ -1,7 +1,7 @@
 import { createBattleReadout } from './battle-readout.js';
 import { createCombatFloor } from './floor-bridge.js';
 import { createDeploymentUI } from './board-ui.js';
-import { placeUnit,scoutSnapshot,assignPositions,boardConfig } from './board.js';
+import { placeUnit,scoutSnapshot,assignPositions,boardConfig,enableRegionalCompany } from './board.js';
 import { OVERLAYS } from './board-overlays.js';
 import { supportKinds,SUPPORT } from './positioning.js';
 import { closingAnalysis,buildSummary } from './analytics.js';
@@ -10,7 +10,8 @@ import { progression } from './progression.js';
 import { initializeTooltips } from './tooltips.js';
 import { initializeCatalog } from './catalog.js';
 import { paintUnitActivity,paintBook,showMarketActions,paintContests } from './combat-view.js';
-import { ASSETS, SCENARIOS, scenarioFor, createDay, step, command, equity, portfolioRisk } from './engine.js';
+import { INSTRUMENTS as ASSETS,MARKETS,regionAt,compatibleMarkets } from './markets.js';
+import { SCENARIOS, scenarioFor, createDay, step, command, equity, portfolioRisk } from './engine.js';
 import { RARITIES, TRAITS, byId, traitCounts, traitLevel, buildConfig, starBenefit, unitGrade } from './roster.js';
 import { createCompany, deployed, reserves, buy, move, sell, sellValue, reroll, refreshDay, oddsFor, floorLimitFor, releaseCompany, incomeFor } from './company.js';
 import { makeLobby, prepareBots, botUnits, startExhibition, stepExhibition, settleExhibition, dayDamage } from './league.js';
@@ -26,6 +27,26 @@ wrapDetails('terminal-drawer','Control terminal',[terminal],rail).open=true;
 wrapDetails('roster-drawer','Active roster & unit details',[$('desk'),document.querySelector('.trait-benefit-panel')],document.querySelector('.arena'));
 const result=$('day-result');$('battle-actions').before(result);
 wrapDetails('markets-drawer','Market heatmap, prices & fills',[$('market-map')],document.querySelector('.arena'));
+// Preserve the existing controls and inspectors, in a viewport-sized game shell.
+const left=document.createElement('aside');left.className='control-sidebar';left.setAttribute('aria-label','Control terminal and inspection');
+document.querySelector('main').prepend(left);
+for(const id of ['terminal-drawer','analytics-drawer','roster-drawer','markets-drawer'])left.append($(id));
+wrapDetails('presentation-drawer','Presentation & audio',[document.querySelector('label:has(#volume)')],left);
+const productDetails=document.createElement('details');productDetails.innerHTML='<summary>Product & factor risk</summary><p id="product-description"></p><pre id="factor-risk"></pre>';
+terminal.append(productDetails);
+const arena=document.querySelector('.arena'),shopSection=document.querySelector('.shop-section');
+const benchSection=document.createElement('section');benchSection.className='bench-section';
+benchSection.append(document.querySelector('.bench-heading'),$('bench'));
+const boardSection=document.createElement('section');boardSection.className='floor-section';
+boardSection.append(document.querySelector('.board-controls'),$('tactical-board'),$('market-selector'),$('placement-preview'));
+const compactTools=document.createElement('div');compactTools.className='compact-tools';
+compactTools.append($('battle-actions'),document.querySelector('.floor-toolbar'));
+arena.prepend(document.querySelector('.scoreboard'),boardSection,compactTools,benchSection,shopSection);
+left.append($('traits'),document.querySelector('.desk-heading'),$('company-notice'),document.querySelector('.market-footer'));
+left.append($('exchange-status'));
+document.querySelector('.topbar').append($('help'));
+$('board-width').closest('label').hidden=true;
+$('placement-preview').textContent='Drag a reserve into an open market. Both firms share this floor.';
 const money = n => `${n < 0 ? '−' : '+'}$${Math.abs(n).toFixed(2)}`;
 const icons = {
   speed: '<path d="m8 22 12-15-3 12h11L16 34l3-12Z"/><path d="M5 12h7M3 18h6M5 28h7"/>',
@@ -40,15 +61,15 @@ const marketFeel=createMarketFeel(document,icon);
 const battleReadout=createBattleReadout(document);
 const combatFloor=createCombatFloor(document);
 let matchSeed=Date.now()>>>0;
-let company=createCompany(matchSeed),lobby=makeLobby(company.pool,company,matchSeed),otherMatches=[],inspectPlayer='cobalt',selectedUnit=null;
+let company=enableRegionalCompany(createCompany(matchSeed),1,1),lobby=makeLobby(company.pool,company,matchSeed),otherMatches=[],inspectPlayer='cobalt',selectedUnit=null;
 let cards = [], day = 1, week = 1, health = [100, 100], phase = 'prep', selected = 0;
-let state = createDay(), interval = null, openingTimeout = null, paused = false, option = null, sound = false, audio = null;
+let state = createDay([],1,[],null,{marketModel:'regional'}), interval = null, openingTimeout = null, paused = false, option = null, sound = false, audio = null;
 let previousScores = [0, 0];
 let ghost=scoutSnapshot(lobby[1]),overlayMode='activity',boardSelection=null;
 const deployment=createDeploymentUI(document,{canEdit:()=>phase==='prep',onPlace:(uid,p)=>{if(phase!=='prep')return false;const ok=placeUnit(company,uid,p);if(ok)syncCompany();return ok;},onBench:uid=>{if(phase!=='prep')return false;const ok=placeUnit(company,uid,null);if(ok)syncCompany();return ok;},onSelect:selectBoardUnit});
 function selectBoardUnit(side,key){boardSelection={side,key};if(side&&phase==='prep'){const u=ghost.units.find(u=>String(u.uid??u.id)===key);if(u)inspectUnit(u.id,null,u.star);paintNumbers();return;}document.dispatchEvent(new window.CustomEvent('watch-unit',{detail:{side,key}}));$('analytics-drawer').open=true;paintNumbers();}
 let marketEnabled=ASSETS.map(()=>true);
-const sessionOptions=()=>({board:company.board,enabled:marketEnabled,activeMarkets:progression(week,day).markets,scenario:progression(week,day).scenario});
+const sessionOptions=()=>({marketModel:'regional',activeRegions:progression(week,day).marketIds,board:company.board,enabled:marketEnabled,activeMarkets:progression(week,day).markets,scenario:progression(week,day).scenario});
 const daySeed=()=>(matchSeed+week*107+day*31)>>>0;
 
 function beep(pitch = 440, length = .06) {
@@ -76,7 +97,7 @@ function paintMap() {
     document.querySelectorAll('.asset').forEach(x => { const active = x === el; x.classList.toggle('selected', active); x.setAttribute('aria-pressed', String(active)); });
     paintNumbers(); beep(320);
   }));
-  $('market-selector').innerHTML=ASSETS.map((a,i)=>`<button class="secondary" data-market-select="${i}">${a.ticker}</button>`).join('');
+  $('market-selector').innerHTML=ASSETS.map((a,i)=>`<button class="secondary" data-market-select="${i}" title="${MARKETS[i].description}">${a.ticker}</button>`).join('');
   $('market-selector').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{selected=Number(b.dataset.marketSelect);paintNumbers();}));
 }
 function paintDesk() {
@@ -138,7 +159,7 @@ function paintShop() {
     const c = byId(id); if(!c) return '<div class="shop-sold"><span>—</span>EMPTY OFFER</div>';
     const owned = company.units.filter(u => u.id === id).reduce((n,u) => n+3**(u.star-1),0);
     const disabled = phase !== 'prep' || company.credits < c.cost;
-    return `<div class="shop-offer" data-offer-id="${c.id}"><button class="shop-card rarity-${c.tier}" data-buy="${slot}" ${disabled ? 'disabled' : ''} aria-label="Recruit ${c.seniority} ${c.name} for ${c.cost} credits. ${c.style} style, ${c.specialty} specialty. ${c.simple}"><div class="card-top"><span>${c.seniority}<small>${RARITIES[c.tier-1]}</small></span><span class="cost">${c.cost} ◎</span></div>${icon(c.icon)}<h3>${c.name}</h3><div class="shop-traits"><span class="style-tag" data-tooltip-trait="${c.style}" title="Firm style">${c.style}</span><span data-tooltip-trait="${c.specialty}" title="Specialty">${c.specialty}</span></div><p>${c.detail}</p><div class="role-tags">${c.tags.map(t=>`<span>${t}</span>`).join('')}</div><div class="pool-count" title="Free copies exclude all eight firms' owned units and reserved shop offers.">${company.pool.remaining[c.id]} free in shared bag / ${company.pool.total[c.id]}</div><div class="card-bottom">${owned ? `${owned} COPIES OWNED · ` : ''}RECRUIT TO BENCH +</div></button><button class="unit-details" data-inspect="${c.id}">Read unit · strengths & risks</button></div>`;
+    return `<div class="shop-offer" data-offer-id="${c.id}"><button class="shop-card rarity-${c.tier}" data-buy="${slot}" title="${c.simple}" ${disabled ? 'disabled' : ''} aria-label="Recruit ${c.seniority} ${c.name} for ${c.cost} credits. ${c.style} style, ${c.specialty} specialty. ${c.simple}"><div class="card-top"><span>${c.seniority}<small>${RARITIES[c.tier-1]}</small></span><span class="cost">${c.cost} ◎</span></div>${icon(c.icon)}<h3>${c.name}</h3><div class="shop-traits"><span class="style-tag" data-tooltip-trait="${c.style}" title="Firm style">${c.style}</span><span data-tooltip-trait="${c.specialty}" title="Specialty">${c.specialty}</span></div><p>${c.detail}</p><div class="role-tags">${c.tags.map(t=>`<span>${t}</span>`).join('')}</div><div class="pool-count" title="Free copies exclude all eight firms' owned units and reserved shop offers.">${company.pool.remaining[c.id]} free in shared bag / ${company.pool.total[c.id]}</div><div class="card-bottom">${owned ? `${owned} COPIES OWNED · ` : ''}RECRUIT TO BENCH +</div></button><button class="unit-details" data-inspect="${c.id}">Read unit · strengths & risks</button></div>`;
   }).join('');
   document.querySelectorAll('[data-buy]').forEach(b => b.addEventListener('click', () => {
     if(phase !== 'prep') return;
@@ -152,12 +173,14 @@ function paintControls() {
   const f = state.firms[0];
   const controls = [{ action: 'stance', symbol: '◈', label: f.stance === 'defensive' ? 'Defensive' : 'Balanced', sub: 'Spread & size stance', key: '1', title: 'Toggle wider spreads and half-size orders. Available to every build.' }];
   if (cards.includes('manual')) controls.push({ action: 'press', symbol: '↗', label: 'Press the market', sub: f.press ? `${Math.ceil(f.press / 2)}s active · tighter quotes` : `${f.config.pressTicks/2}s window · ${f.config.cooldownTicks/2}s cooldown`, key: '2', title: 'Refresh and tighten quotes temporarily. Traits and upgrades change the window. More competitive prices bring more exposure.' });
-  if (cards.includes('research') || cards.includes('directional')) controls.push({ action: 'lean', symbol: '⌁', label: f.lean === 1 ? 'Lean long' : f.lean === -1 ? 'Lean short' : 'Neutral signal', sub: cards.includes('directional') ? 'Macro conviction tilt' : 'Cycle your quote tilt', key: String(controls.length + 1), title: `Cycle neutral → long → short. Shift quotes by $${f.config.leanStrength.toFixed(2)}. A wrong directional view can increase losses.` });
-  if (cards.includes('hedge')) controls.push({ action: 'hedge', symbol: '◇', label: 'Emergency hedge', sub: 'Flatten inventory · pay execution cost', key: String(controls.length + 1), title: `Close positions at an external hedge venue. Slippage $${f.config.hedgeCost.toFixed(3)} + $0.01 fee per unit. Shares an intervention cooldown with Press.` });
-  $('controls').innerHTML = controls.map(c => {
+  if (cards.includes('research') || cards.includes('directional')) controls.push({ action: 'lean', symbol: '⌁', label: f.lean === 1 ? 'Lean long' : f.lean === -1 ? 'Lean short' : 'Neutral signal', sub: cards.includes('directional') ? 'Macro conviction tilt' : 'Cycle your quote tilt', key: String(controls.length + 1), title: `Cycle neutral → long → short. Shift quotes by $${f.config.leanStrength.toFixed(2)} in ETF-equivalent price units, scaled to the product. A wrong directional view can increase losses.` });
+  if (cards.includes('hedge')) controls.push({ action: 'hedge', symbol: '◇', label: 'Emergency hedge', sub: 'Flatten inventory · pay execution cost', key: String(controls.length + 1), title: `Close positions at an external hedge venue. ETF-equivalent slippage $${f.config.hedgeCost.toFixed(3)}, scaled by product spread and contract size, plus $0.01 fee per contract. Shares an intervention cooldown with Press.` });
+  const moreOpen=$('controls').querySelector('details')?.open;
+  const buttons=controls.map(c => {
     const cd = ['press', 'hedge'].includes(c.action) && f.cooldown;
     return `<button class="control" data-action="${c.action}" data-key="${c.key}" title="${c.title}" ${phase !== 'live' || paused || cd ? 'disabled' : ''}><span class="control-icon">${c.symbol}</span><span>${c.label}<small>${cd ? `${Math.ceil(f.cooldown / 2)}s cooldown` : c.sub}</small></span><kbd>${c.key}</kbd></button>`;
-  }).join('');
+  });
+  $('controls').innerHTML=buttons.slice(0,3).join('')+(buttons.length>3?`<details ${moreOpen?'open':''}><summary>More controls</summary>${buttons.slice(3).join('')}</details>`:'');
   document.querySelectorAll('[data-action]').forEach(b => b.addEventListener('click', () => act(b.dataset.action)));
   if (focused) document.querySelector(`[data-action="${focused}"]:not(:disabled)`)?.focus({ preventScroll: true });
   $('control-status').textContent = phase !== 'live' ? 'OFFLINE' : paused ? 'PAUSED' : 'CONNECTED';
@@ -174,8 +197,8 @@ function act(action) {
 function paintFocus() {
   paintBook(state,selected);
   const f = state.firms[0], a = selected, q = f.quotes[a];
-  $('focus-ticker').textContent = ASSETS[a].ticker; $('focus-price').textContent = `$${state.prices[a].toFixed(2)}`;
-  $('bid').textContent = q ? `$${q.bid.toFixed(2)}` : '—'; $('ask').textContent = q ? `$${q.ask.toFixed(2)}` : '—';
+  $('focus-ticker').textContent = ASSETS[a].ticker; $('focus-price').textContent = `$${state.prices[a].toFixed(a===4?4:2)}`;
+  $('bid').textContent = q ? `$${q.bid.toFixed(a===4?4:2)}` : '—'; $('ask').textContent = q ? `$${q.ask.toFixed(a===4?4:2)}` : '—';
   $('focus-result').textContent = `${q?.indicative&&phase==='live'?'Indicative bounds - ':''}${f.enabled[a]?'':'Quoting paused · '}Position ${f.inv[a]>=0?'+':''}${f.inv[a]} · Realized ${money(f.realized[a])}`;
   $('market-toggle').textContent=`${f.enabled[a]?'Pause':'Resume'} ${ASSETS[a].ticker} quotes`;
   $('market-toggle').setAttribute('aria-pressed',String(f.enabled[a]));
@@ -206,19 +229,23 @@ function paintNumbers() {
   const f = state.firms[0];
   $('risk-label').textContent = f.risk + '%'; $('risk-fill').style.width = Math.min(100, f.risk) + '%'; $('risk-fill').style.background = f.risk > 75 ? '#ffc17d' : 'var(--lime)';
   const risk=portfolioRisk(f,state.prices,state.conditions);
+  $('product-description').textContent=ASSETS[selected].info;
+  $('factor-risk').textContent=`ETF delta ${risk.delta.toFixed(2)}\nDV01 $${risk.dv01.toFixed(3)} / bp\nCredit CS01 $${risk.cs01.toFixed(3)} / bp\nOption vega $${risk.vega.toFixed(2)} / 1.0 vol\nCredit jump $${risk.creditJumpLoss.toFixed(2)}\nConcentration ${(risk.concentration*100).toFixed(0)}%\nLocal factor approximation; not maximum loss.`;
+  document.querySelector('.risk-summary').title=risk.definition;
   $('risk-sigma').textContent=`$${risk.sigma1s.toFixed(2)}`;$('risk-gross').textContent=`$${risk.gross.toFixed(0)}`;
   $('positions').innerHTML = ASSETS.map((a, i) => `<div class="position" ${state.active[i]?'':'hidden'}>${a.ticker}<b>${f.inv[i] >= 0 ? '+' : ''}${f.inv[i]}</b></div>`).join('');
   const remaining = Math.max(0, 40 - state.tick / 2); $('timer').textContent = `0:${String(Math.ceil(remaining)).padStart(2, '0')}`; $('timer').classList.toggle('urgent', phase === 'live' && remaining < 10);
   paintFocus();paintUnitActivity(state);battleReadout.paint(state);
-  const opponent=phase==='prep'?ghost.units:state.firms[1].units;
+  const opponent=['prep','close','weekend'].includes(phase)?[]:state.firms[1].units;
   document.body.dataset.battlePhase=phase;
   combatFloor.paint(state,{phase,market:selected,overlay:overlayMode,opponent,selectedUnit:boardSelection?.key??selectedUnit,selectedSide:boardSelection?.side??0});
   $('tactical-board').style.aspectRatio=`${state.board.cols}/${state.board.rows}`;
   $('board-width').disabled=phase!=='prep';
-  deployment.paint({own:state.firms[0].units,bench:reserves(company),opponent,board:state.board});
+  deployment.paint({own:state.firms[0].units,bench:reserves(company),opponent,board:state.board,state,activeRegions:company.activeRegions,instruments:state.instruments,phase});
+  document.querySelectorAll('[data-market-select]').forEach(b=>{b.disabled=!state.active[Number(b.dataset.marketSelect)];b.setAttribute('aria-pressed',String(Number(b.dataset.marketSelect)===selected));});
   $('overlay-metric').textContent=OVERLAYS[overlayMode];
   const q=state.books[selected],bids=q.orders.filter(o=>o.side==='buy'),asks=q.orders.filter(o=>o.side==='sell');
-  $('exchange-status').textContent=`${ASSETS[selected].ticker} $${state.prices[selected].toFixed(2)} · ${bids.length?Math.max(...bids.map(o=>o.price))/100:'—'} / ${asks.length?Math.min(...asks.map(o=>o.price))/100:'—'}`;
+  $('exchange-status').textContent=`${ASSETS[selected].ticker} $${state.prices[selected].toFixed(2)} · ${bids.length?Math.max(...bids.map(o=>o.price))/ASSETS[selected].priceScale:'—'} / ${asks.length?Math.min(...asks.map(o=>o.price))/ASSETS[selected].priceScale:'—'}`;
   $('scout-stamp').textContent=phase==='prep'?`${ghost.name} · snapshot W${ghost.week} D${ghost.day}`:'Final opponent deployment revealed';
   const summary=buildSummary(state);$('build-summary').innerHTML=[...summary.strengths.map(s=>`<span>${s}</span>`),...summary.weaknesses.map(s=>`<span class="build-caution">${s}</span>`)].join('');
 }
@@ -304,9 +331,12 @@ function closeDay() {
   $('recap-subtitle').textContent = damage ? `${gap > 0 ? 'Cobalt' : 'Mint'} −${damage} HP · +${nextIncome.total} credits tomorrow (${nextIncome.interest} interest)` : `Evenly matched - +${nextIncome.total} credits tomorrow (${nextIncome.interest} interest)`;
   $('recap-stats').innerHTML = `<span>${money(scores[0])}</span><span>${money(scores[1])}</span>`;
   const report=closingAnalysis(state),name=r=>r?.card.name||'None';
+  const rankedMarkets=state.firms[0].pnl.map((net,a)=>({net,a})).filter(x=>state.active[x.a]).sort((a,b)=>b.net-a.net),best=rankedMarkets[0],worst=rankedMarkets.at(-1);
+  $('recap-subtitle').textContent+=` / ${name(report.top)} ${money(report.top?.net||0)} / ${ASSETS[best.a].name} ${money(best.net)}`;
+  $('recap-subtitle').title=`Largest open exposure: ${name(report.risk)}, $${(report.risk?.gross||0).toFixed(0)} gross. Lowest regional result: ${ASSETS[worst.a].name} ${money(worst.net)}. Protection activity: ${report.helper?.activity.hedged||0} units trimmed, $${(report.helper?.activity.cost||0).toFixed(2)} cost. Not a counterfactual losses-avoided claim.`;
   $('closing-highlights').innerHTML=`<div><small>TOP ORDER STREAM</small><b>${name(report.top)}</b><span>${money(report.top?.net||0)}</span></div><div><small>LARGEST OPEN EXPOSURE</small><b>${name(report.risk)}</b><span>$${(report.risk?.gross||0).toFixed(0)} gross</span></div><div><small>SUPPORT ACTIVITY · PROXY</small><b>${name(report.helper)}</b><span>${report.helper?.activity.hedged||0} trimmed · ${report.helper?.activity.signalChecked||0} signals assessed</span></div><div><small>LOWEST ORDER STREAM</small><b>${name(report.weak)}</b><span>${money(report.weak?.net||0)}</span></div><p>${report.advice}</p>`;
   if(report.moment){const m=report.moment,p=document.createElement('p');p.textContent=`Largest recorded interaction: ${byId(m.source.id).name} ${m.type==='hedge'?`trimmed ${m.qty} ${ASSETS[m.asset].ticker}, paying $${m.cost.toFixed(2)}`:`won ${m.qty} ${ASSETS[m.asset].ticker} customer units on ${m.reason==='price'?'price':'queue priority'}`}. Volume is not profit.`;$('closing-highlights').append(p);}
-  $('recap-breakdown').innerHTML = ASSETS.map((a, i) => `<div class="recap-row"><span>${a.ticker}</span><span>${money(state.firms[0].pnl[i])}</span><span>${money(state.firms[1].pnl[i])}</span></div>`).join('') + `<div class="recap-row"><small>Fees</small><small>−$${state.firms[0].fees.toFixed(2)}</small><small>−$${state.firms[1].fees.toFixed(2)}</small></div><div class="recap-row"><small>Inventory settled at closing marks.<br>Options settle separately in net P&L.</small></div>`;
+  $('recap-breakdown').innerHTML = ASSETS.map((a, i) => `<div class="recap-row"><span>${a.ticker}</span><span>${money(state.firms[0].pnl[i])}</span><span>${money(state.firms[1].pnl[i])}</span></div>`).join('') + `<div class="recap-row"><small>Fees included</small><small>−$${state.firms[0].fees.toFixed(2)}</small><small>−$${state.firms[1].fees.toFixed(2)}</small></div><div class="recap-row"><small>Inventory valued at closing marks.<br>Calls expire to intrinsic; weekend tickets are separate.</small></div>`;
   const ended = health.some(h => !h);
   if (ended) { $('recap-title').textContent = health[0] ? 'Mint wins the match.' : 'The firm closes its doors.'; $('recap-subtitle').textContent = 'Build a different desk and try again.'; }
   $('next').innerHTML = `${ended ? 'NEW MATCH' : day === 5 ? 'HEAD INTO THE WEEKEND' : 'PREPARE FOR TOMORROW'} <span>→</span>`;
@@ -324,7 +354,7 @@ function weekend() {
   phase = 'weekend'; day = 6; paintWeek(); paintDesk(); paintControls();
   $('phase-label').textContent = 'WEEKEND DRAFT'; $('shop-eyebrow').textContent = 'THE WEEKEND / DERIVATIVES DRAFT'; $('shop-title').textContent = 'A different shape of risk.'; $('credits').innerHTML = `${company.credits} <small>◎</small>`; $('shop').classList.add('option-shop');
   $('reroll').disabled=true; $('lock-shop').disabled=true;
-  const choices = [ ['call', 'Long Call', 'Pays 12 × max(NOVA close − $100, 0). $8 premium. Expires Monday.', 'signal'], ['put', 'Protective Put', 'Pays 12 × max($100 − NOVA close, 0). $8 premium. Expires Monday.', 'shield'], ['skip', 'Stay Liquid', 'Skip the premium. Carry no option into Monday.', 'blocks'] ];
+  const choices = [ ['call', 'Long Call', 'Pays 12 × max(ETF close − $100, 0). $8 premium. Expires Monday.', 'signal'], ['put', 'Protective Put', 'Pays 12 × max($100 − ETF close, 0). $8 premium. Expires Monday.', 'shield'], ['skip', 'Stay Liquid', 'Skip the premium. Carry no option into Monday.', 'blocks'] ];
   $('shop').innerHTML = choices.map(([id, name, desc, img]) => `<button class="shop-card" data-option="${id}"><div class="card-top"><span>MONDAY EXPIRY</span><span class="cost">${id === 'skip' ? '$0' : '$8'}</span></div>${icon(img)}<h3>${name}</h3><p>${desc}</p><div class="card-bottom">SELECT & OPEN NEXT WEEK →</div></button>`).join('');
   $('start').disabled = true; $('start').innerHTML = 'CHOOSE BELOW <span>↓</span>'; $('start-note').textContent = 'One contract. Premium paid from Monday’s trading capital.'; $('ticker').innerHTML = '<span class="muted">MARKET CLOSED</span> Pick an option below. A new week awaits.';
   document.querySelectorAll('[data-option]').forEach(b => b.addEventListener('click', () => {
@@ -333,7 +363,7 @@ function weekend() {
 }
 function reset() {
   clearTimeout(openingTimeout);
-  clearInterval(interval);marketFeel.reset(state);matchSeed=Date.now()>>>0;company=createCompany(matchSeed);lobby=makeLobby(company.pool,company,matchSeed);ghost=scoutSnapshot(lobby[1]); otherMatches=[]; selectedUnit=null; cards = []; day = 1; week = 1; health = [100, 100]; phase = 'prep'; option = null; paused = false; previousScores = [0, 0];
+  clearInterval(interval);marketFeel.reset(state);matchSeed=Date.now()>>>0;company=enableRegionalCompany(createCompany(matchSeed),1,1);lobby=makeLobby(company.pool,company,matchSeed);ghost=scoutSnapshot(lobby[1]); otherMatches=[]; selectedUnit=null; cards = []; day = 1; week = 1; health = [100, 100]; phase = 'prep'; option = null; paused = false; previousScores = [0, 0];
   marketEnabled=ASSETS.map(()=>true);state=createDay([],daySeed(),botUnits(lobby[1],week),null,sessionOptions()); $('rival-build').textContent = 'Spread Engine / Signal Lab'; paintMap(); paintPrep();
   notice('Recruit to your bench, then deploy. Three matching copies merge automatically.');
 }
@@ -356,9 +386,9 @@ function inspectUnit(id,uid,star=1) {
     sizing:`The ${owned?.deployed?'current desk':'unit-alone preview'} can quote ${config.size} units per side in Balanced stance and hold at most ${config.capacity} units per asset. The unit places two price levels; inventory limits are enforced across the whole firm.`,
     execution:`Quote refresh interval is ${config.cadence/2}s with arrival advantage ${config.priority.toFixed(2)}. The book fills by price then FIFO; speed does not jump older orders. Repricing and filling are different events.`,
   };
-  const policyTechnical=id==='specialist'?'Buys a NOVA straddle at the opening: quantity 3 × grade; premium $1.60 per quantity. Pays quantity × abs(close − $100) at expiry. No intraday option value. Does not submit quotes or unlock Press.':id==='clerk'?'Blocks position-increasing new offers when absolute inventory exceeds 18 units. Existing offers can still fill; emergency hedge closes positions for an explicit cost.':technical[c.capability];
+  const policyTechnical=id==='specialist'&&state.regional?'Quotes a European ETF call, strike $100, multiplier 10 USD per quoted dollar. Black-Scholes marks use observable ETF price, a volatility estimate and remaining modeled trading day; expiry pays max(ETF close minus 100, 0). Two-sided quotes can create long or short positions. Premium cash flows, fees and settlement are real ledger entries; no Press action.':id==='specialist'&& !state.regional?'Buys a NOVA straddle at the opening: quantity 3 × grade; premium $1.60 per quantity. Pays quantity × abs(close − $100) at expiry. No intraday option value. Does not submit quotes or unlock Press.':id==='clerk'?'Blocks position-increasing new offers when absolute inventory exceeds 18 units. Existing offers can still fill; emergency hedge closes positions for an explicit cost.':technical[c.capability];
   $('unit-technical').textContent=`${policyTechnical} Star ${owned?.star||star}: grade ${unitGrade({id,star:owned?.star||star}).toFixed(2)}. ${starBenefit(id)} Each extra star adds 0.25 grade; profits are not guaranteed.`;
-  $('unit-scope').textContent=`${c.combatRole}: ${c.counter} Trading units own their orders and position streams. Research and protection support the firm; their activity counters show actual estimates or exposure trimmed.`;
+  $('unit-scope').textContent=`Eligible markets: ${compatibleMarkets(id).map(id=>MARKETS.find(m=>m.id===id).name).join(', ')}. Assigned tile selects the actual product. ${c.combatRole}: ${c.counter} Trading units own their orders and position streams. Research and protection support the firm; their activity counters show actual estimates or exposure trimmed.`;
   const localRoles=supportKinds({id});if(localRoles.length)$('unit-scope').textContent+=` Local roles: ${localRoles.map(kind=>`${kind}: range ${SUPPORT[kind].range}, up to ${SUPPORT[kind].capacity} targets`).join('; ')}. Manager and engineer effects require eligible routed jobs; coverage does not guarantee use or profit.`;
   $('unit-advanced').open=false; $('unit-dialog').showModal();
 }

@@ -1,3 +1,9 @@
+# Latest direction: shared regional floor
+
+2026-10-23: newest user specification supersedes prior no-sector / mirrored-half rules. Current implementation uses one shared 8 x 8 irregular financial product map, progressive Equities/Options/Rates+FX/Commodities/Credit unlocks, real contract/pricing differences, market-assigned units and three-column viewport UX. Internal name remains Trade Fight Tactics; public name changes later. Paid leveling and longer matches remain future concepts. See docs/regional-market-architecture.md and docs/implementation-results.md for source-of-truth mechanics and honest limitations. Historical context below is preserved.
+
+---
+
 # Trade Fight Tactics — start here
 
 ## Current handoff: watchability and repository showcase

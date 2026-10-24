@@ -1,3 +1,11 @@
+# Current regional visualization
+
+Orders now target per-region gateways on one shared floor. Ownership uses fixed left/right half-slots inside each tile, not two board halves. Unit badges use initials with full names/accounting on hover/inspection. Opening reveals the rival, closing fades it, and player placements persist. Market colors represent product identity; signed net P&L and overlays represent outcomes. [Event vocabulary and verification](regional-ux-and-validation.md).
+
+Historical presentation notes follow.
+
+---
+
 # Tactical combat visualization
 
 The persistent deployment board is the battlefield. Pixi renders the exact stored positions, while a transparent HTML tile grid provides pointer dragging, keyboard navigation, inspection and no-WebGL fallback. The opponent is above, the player below. Character/workstation assets retain their documented CC0/original provenance.

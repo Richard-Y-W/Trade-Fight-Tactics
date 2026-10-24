@@ -1,3 +1,9 @@
+# Current regional iteration: Visual design
+
+The browser now uses the shared six-market floor, deterministic ownership subslots, market-assigned quotes/research, a marked daily ETF call and duration/spread/pip-aware instruments. Unit roles and finite support are preserved; the Volatility PM now quotes calls, and Relative Value Lead trades the rates/credit relationship when both markets are open. See [regional architecture](regional-market-architecture.md) and [UX, animation vocabulary and current tests](regional-ux-and-validation.md). Human beginner readability testing remains unperformed. Historical notes follow.
+
+---
+
 # Trading-floor visual system
 
 Dark green trading room, neutral cream typography, ownership green/blue. Role silhouettes carry meaning independently of color: twin quote monitors, fast server screens, research antenna, risk shield, directional lever, capacity stacks and V-shaped option payoff.

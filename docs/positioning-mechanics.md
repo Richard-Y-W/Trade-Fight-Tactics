@@ -1,3 +1,11 @@
+# Current regional positioning
+
+The current shared map has no player/opponent halves. Units choose products by region. Routing distance is floor(Manhattan distance to that region's gateway / 2) ticks, plus the existing processing queue and infrastructure effects. Research only produces the region's product estimate; a structural connection does not deliver estimates for other products. Same existing finite local support rules; no profit bonus from tile area. [Full rules](regional-market-architecture.md).
+
+Historical mirrored-half rules follow.
+
+---
+
 # Positioning and financial effects
 
 Positions are local `{col,row}` coordinates. Row 0 touches the center boundary, row 3 is the back of a half-board. Player global rows 4–7 mirror opponent rows 3–0. Default geometry is 8×8; 9×8 is selectable during preparation. Neither sectors nor roles own tiles. All deployments use the existing total capacity progression. Bench, floor and merge transactions retain unique instance IDs and positions.

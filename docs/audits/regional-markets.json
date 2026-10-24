@@ -1,0 +1,126 @@
+{
+  "scope": "576 paired-seat seeded regional duels; unequal cost/floor compositions. Common market paths, not a balanced tournament or proof of fun. Headless tick timings exclude rendering; no margin/financing/market impact calibration.",
+  "groups": {
+    "hft": {
+      "calm": {
+        "duels": 48,
+        "meanPnl": 16.360486716003873,
+        "profitable": 1,
+        "winRate": 0,
+        "p05": 8.555197015180966,
+        "meanFees": 0.9710802000353773,
+        "meanFills": 228.33333333333334
+      },
+      "trend": {
+        "duels": 48,
+        "meanPnl": 15.681502536756776,
+        "profitable": 0.8541666666666666,
+        "winRate": 0.6458333333333334,
+        "p05": -9.79814116878515,
+        "meanFees": 0.7682195805374561,
+        "meanFills": 171.08333333333334
+      },
+      "shock": {
+        "duels": 48,
+        "meanPnl": -7.008416175705406,
+        "profitable": 0.2916666666666667,
+        "winRate": 0.625,
+        "p05": -26.51611380192844,
+        "meanFees": 0.6658295953687455,
+        "meanFills": 142.1875
+      }
+    },
+    "options": {
+      "calm": {
+        "duels": 48,
+        "meanPnl": 6.6829461640958625,
+        "profitable": 0.6041666666666666,
+        "winRate": 0,
+        "p05": -17.99000000002161,
+        "meanFees": 0.5319791666666671,
+        "meanFills": 90.39583333333333
+      },
+      "trend": {
+        "duels": 48,
+        "meanPnl": 8.207912849681255,
+        "profitable": 0.6041666666666666,
+        "winRate": 0.5833333333333334,
+        "p05": -158.82551500039153,
+        "meanFees": 0.5922916666666672,
+        "meanFills": 102.45833333333333
+      },
+      "shock": {
+        "duels": 48,
+        "meanPnl": -49.99298865375761,
+        "profitable": 0.125,
+        "winRate": 0.3125,
+        "p05": -156.8164359458042,
+        "meanFees": 0.4410416666666668,
+        "meanFills": 72.20833333333333
+      }
+    },
+    "diversified": {
+      "calm": {
+        "duels": 48,
+        "meanPnl": 96.98870141708585,
+        "profitable": 1,
+        "winRate": 0.5,
+        "p05": 54.21965248234119,
+        "meanFees": 2.1156249999999925,
+        "meanFills": 423.125
+      },
+      "trend": {
+        "duels": 48,
+        "meanPnl": -223.84111378332935,
+        "profitable": 0.20833333333333334,
+        "winRate": 0.5,
+        "p05": -882.9983587141869,
+        "meanFees": 2.1074999999999933,
+        "meanFills": 421.5
+      },
+      "shock": {
+        "duels": 48,
+        "meanPnl": -60.498135280317534,
+        "profitable": 0.2708333333333333,
+        "winRate": 0.5,
+        "p05": -280.235717173382,
+        "meanFees": 1.409062499999998,
+        "meanFills": 281.8125
+      }
+    },
+    "relativeValue": {
+      "calm": {
+        "duels": 48,
+        "meanPnl": 13.619304733610496,
+        "profitable": 1,
+        "winRate": 0,
+        "p05": 5.21709448693764,
+        "meanFees": 0.6946875000000002,
+        "meanFills": 106.9375
+      },
+      "trend": {
+        "duels": 48,
+        "meanPnl": 5.6064596962136575,
+        "profitable": 0.7083333333333334,
+        "winRate": 0.6666666666666666,
+        "p05": -10.840086021633397,
+        "meanFees": 0.7891666666666671,
+        "meanFills": 125.83333333333333
+      },
+      "shock": {
+        "duels": 48,
+        "meanPnl": -0.13208525482472547,
+        "profitable": 0.6875,
+        "winRate": 0.75,
+        "p05": -301.97538333473494,
+        "meanFees": 0.6112500000000004,
+        "meanFills": 90.25
+      }
+    }
+  },
+  "timing": {
+    "ticks": 46080,
+    "meanMs": 0.10681309027777736,
+    "p95Ms": 0.1948000000002139
+  }
+}

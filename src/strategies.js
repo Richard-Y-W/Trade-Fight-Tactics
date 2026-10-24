@@ -1,5 +1,5 @@
 // These policies receive public observations and delivered beliefs, never simulator state.
-export const POLICIES={maker:'Passive quotes',execution:'Fast repricing',manual:'Player-directed pressure',broker:'Momentum', 'value-clerk':'Mean reversion',analyst:'Private research',clerk:'Inventory guard',hedge:'Dynamic liquidation','agency-lead':'Paired relative value',specialist:'Expiry straddle'};
+export const POLICIES={maker:'Passive quotes',execution:'Fast repricing',manual:'Player-directed pressure',broker:'Momentum', 'value-clerk':'Mean reversion',analyst:'Private research',clerk:'Inventory guard',hedge:'Dynamic liquidation','agency-lead':'Paired relative value',specialist:'Options quoting'};
 export function policyFor(card){return POLICIES[card.id]||({research:'Private research',hedge:'Dynamic liquidation',sizing:'Depth ladder',execution:'Fast repricing',manual:'Player-directed pressure',maker:'Passive quotes'}[card.capability]);}
 export function decisionFor(card,{asset,prices,history,beliefs,inventory,capacity,lean,leanStrength,trendTilt}) {
   const p=prices[asset],h=history[asset],movement=p-h[Math.max(0,h.length-5)];

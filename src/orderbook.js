@@ -1,5 +1,5 @@
-// Small continuous limit book. Prices are integer cents; equal prices use FIFO.
-export function createBook() { return {orders:[],sequence:0,last:null,trades:0}; }
+// Small continuous limit book. Prices are integer instrument ticks; equal prices use FIFO.
+export function createBook(priceScale=100) { return {priceScale,orders:[],sequence:0,last:null,trades:0}; }
 export function cancelOrders(book,predicate) {
   const count=book.orders.filter(predicate).length;
   book.orders=book.orders.filter(o=>!predicate(o));return count;
@@ -17,7 +17,7 @@ export function submitOrder(book,input,{capacity=()=>Infinity,onFill=()=>{}}={})
     const qty=Math.max(0,Math.min(incoming.remaining,resting.remaining,capacity(incoming),capacity(resting)));
     if(!qty)continue;
     incoming.remaining-=qty;resting.remaining-=qty;book.last=resting.price;book.trades++;
-    onFill({incoming,resting,qty,price:resting.price/100});
+    onFill({incoming,resting,qty,price:resting.price/(book.priceScale||100)});
     if(incoming.remaining<1e-9)break;
   }
   book.orders=book.orders.filter(o=>o.remaining>1e-9);
@@ -28,7 +28,7 @@ export function depth(book,levels=3) {
   const side=name=>{
     const prices=new Map();
     for(const o of book.orders)if(o.side===name)prices.set(o.price,(prices.get(o.price)||0)+o.remaining);
-    return [...prices].sort((a,b)=>name==='buy'?b[0]-a[0]:a[0]-b[0]).slice(0,levels).map(([p,qty])=>({price:p/100,qty}));
+    return [...prices].sort((a,b)=>name==='buy'?b[0]-a[0]:a[0]-b[0]).slice(0,levels).map(([p,qty])=>({price:p/(book.priceScale||100),qty}));
   };
-  return {bids:side('buy'),asks:side('sell'),last:book.last==null?null:book.last/100};
+  return {bids:side('buy'),asks:side('sell'),last:book.last==null?null:book.last/(book.priceScale||100)};
 }

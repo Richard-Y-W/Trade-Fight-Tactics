@@ -2,10 +2,11 @@ import { createDay, step, equity } from './engine.js';
 import { createPool,createCompany,refreshDay,buy,reroll,deployed,reserves,sell,releaseCompany,floorLimitFor } from './company.js';
 import { byId,traitCounts } from './roster.js';
 import { progression } from './progression.js';
-import { assignPositions } from './board.js';
+import { compatibleMarkets,marketCells,regionAt } from './markets.js';
+import { assignPositions,enableRegionalCompany } from './board.js';
 const isTrader=u=>!['hedge','research'].includes(byId(u.id).capability);
 export function selectBotFloor(company,preferences=[]) {
-  const chosen=[],candidates=[...company.units];
+  const chosen=[],candidates=company.units.filter(u=>!company.board?.shared||compatibleMarkets(u.id).some(id=>company.activeRegions.includes(id)));
   while(chosen.length<company.floorLimit&&candidates.length) {
     const counts=traitCounts(chosen),traders=chosen.filter(isTrader).length;
     const score=u=>{
@@ -17,7 +18,17 @@ export function selectBotFloor(company,preferences=[]) {
     candidates.sort((a,b)=>score(b)-score(a));chosen.push(candidates.shift());
   }
   company.units.forEach(u=>{u.deployed=chosen.includes(u);});
-  assignPositions(chosen,company.board);
+  if(company.board?.shared){
+    const occupied=new Set(),traders=chosen.filter(isTrader),support=chosen.filter(u=>!isTrader(u));
+    for(const [i,u] of [...traders,...support].entries()){
+      const allowed=company.activeRegions.filter(id=>compatibleMarkets(u.id).includes(id));
+      const ally=i>=traders.length?traders[(i-traders.length)%Math.max(1,traders.length)]:null;
+      const market=ally&&allowed.includes(regionAt(ally.position))?regionAt(ally.position):allowed[i%allowed.length];
+      const cells=marketCells(market).sort((a,b)=>ally?Math.abs(a.col-ally.position.col)+Math.abs(a.row-ally.position.row)-Math.abs(b.col-ally.position.col)-Math.abs(b.row-ally.position.row):a.row-b.row||a.col-b.col);
+      const tile=cells.find(p=>!occupied.has(`${p.col}:${p.row}`));if(tile){u.position={...tile};occupied.add(`${tile.col}:${tile.row}`);}
+    }
+  }
+  assignPositions(chosen,company.board,company.activeRegions);
 }
 export const makeLobby = (pool=createPool(),playerCompany=null,seed=1) => {
 const players=[
@@ -31,6 +42,7 @@ const players=[
   {id:'violet',name:'Violet Quant',health:100,ids:['research','analyst','maker']},
 ];
 for(let i=0;i<players.length;i++)players[i].company=i===0&&playerCompany?playerCompany:createCompany(seed+i*997,pool);
+if(playerCompany?.board?.shared)for(const p of players.slice(1))enableRegionalCompany(p.company,1,1);
 prepareBots(players,1,false);return players;
 };
 export function prepareBots(lobby,week,advance=true,day=1) {
@@ -65,7 +77,7 @@ export function botUnits(player, week) {
 }
 export function startExhibition(lobby, week, seed,day=1) {
   const p=progression(week,day);
-  return [[2,3],[4,5],[6,7]].filter(([a,b]) => lobby[a].health && lobby[b].health).map(([a,b]) => ({a,b,state:createDay(botUnits(lobby[a],week),seed,botUnits(lobby[b],week),null,{scenario:p.scenario,activeMarkets:p.markets,autopilot:[true,true]})}));
+  return [[2,3],[4,5],[6,7]].filter(([a,b]) => lobby[a].health && lobby[b].health).map(([a,b]) => ({a,b,state:createDay(botUnits(lobby[a],week),seed,botUnits(lobby[b],week),null,{scenario:p.scenario,activeMarkets:p.markets,board:lobby[a].company.board,activeRegions:p.marketIds,autopilot:[true,true]})}));
 }
 export function stepExhibition(matches) { matches.forEach(m => step(m.state)); }
 export function dayDamage(a,b) { const gap = Math.abs(a-b); return gap < .005 ? 0 : Math.min(18,8 + Math.floor(gap / 5)); }

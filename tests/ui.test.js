@@ -33,10 +33,10 @@ test('company UI recruits, deploys, locks, trades, shows an inline result, and a
     assert.equal(window.document.querySelectorAll('.lobby-player').length,8);
     assert.ok(window.document.querySelectorAll('#opponent-floor .scout-unit').length>0);
     assert.match($('opponent-slots').textContent,/BENCH/);
-    assert.equal(window.document.querySelectorAll('.asset:not([hidden])').length,3);
-    window.document.querySelector('[data-asset="1"]').click(); assert.equal($('focus-ticker').textContent,'VOLT');
+    assert.equal(window.document.querySelectorAll('.asset:not([hidden])').length,1);
+    window.document.querySelector('[data-asset="0"]').click(); assert.equal($('focus-ticker').textContent,'ETF');
     $('market-toggle').click();assert.equal($('market-toggle').getAttribute('aria-pressed'),'false');
-    assert.equal(window.document.querySelector('[data-asset="1"]').classList.contains('market-paused'),true);
+    assert.equal(window.document.querySelector('[data-asset="0"]').classList.contains('market-paused'),true);
     $('market-toggle').click();assert.equal($('market-toggle').getAttribute('aria-pressed'),'true');
     window.document.querySelector('[data-asset="0"]').click();
     window.document.querySelector('[data-inspect="maker"]').click();
@@ -64,12 +64,12 @@ test('company UI recruits, deploys, locks, trades, shows an inline result, and a
     assert.match($('recap-title').textContent,/edge|day|finish|match|doors/);
     assert.notEqual($('your-score').textContent,'+$0.00');
     $('next').click(); assert.equal($('day-result').hidden,true); assert.match($('day-title').textContent,/Day 2/);
-    assert.match($('slots-label').textContent,/3 \/ 4/);assert.equal(window.document.querySelectorAll('.asset:not([hidden])').length,3);
+    assert.match($('slots-label').textContent,/3 \/ 4/);assert.equal(window.document.querySelectorAll('.asset:not([hidden])').length,2);
     assert.equal($('lock-shop').getAttribute('aria-pressed'),'true'); assert.deepEqual(offers(),locked);
     window.document.querySelector('[data-player="ivory"]').click(); assert.match($('lobby-inspect').textContent,/Ivory Research/);
     $('help').click(); assert.equal($('help-dialog').open,true); $('close-help').click();
     for(let day=2;day<=5;day++) {
-      assert.equal(window.document.querySelectorAll('.asset:not([hidden])').length,[3,3,4,5,5][day-1]);
+      assert.equal(window.document.querySelectorAll('.asset:not([hidden])').length,[1,2,4,5,6][day-1]);
       $('start').click(); for(let tick=0;tick<80;tick++)nextTick(); assert.equal($('day-result').hidden,false); $('next').click();
     }
     assert.equal($('phase-label').textContent,'WEEKEND DRAFT');

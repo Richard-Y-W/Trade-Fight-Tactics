@@ -1,5 +1,5 @@
 const cash=n=>`${n<0?'−':'+'}$${Math.abs(n).toFixed(2)}`;
-export function snapshot(s) { return s.firms.map(f=>({pnl:[...f.pnl],fees:f.fees,equity:f.cash+f.inv.reduce((n,q,a)=>n+q*s.prices[a],0)})); }
+export function snapshot(s) { return s.firms.map(f=>({pnl:[...f.pnl],fees:f.fees,equity:f.cash+f.inv.reduce((n,q,a)=>n+q*s.prices[a]*(s.instruments[a].multiplier||1),0)})); }
 export function markedChanges(s,before) {
   const changes=[];
   s.firms.forEach((f,side)=>f.pnl.forEach((pnl,asset)=>{

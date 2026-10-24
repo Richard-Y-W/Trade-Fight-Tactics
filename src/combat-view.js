@@ -11,7 +11,7 @@ export function paintUnitActivity(state,root=document) {
       if(c.capability==='research')target.textContent=`${a.signals} estimates`;
       else if(c.capability==='hedge')target.textContent=u.id==='clerk'?`${a.guarded||0} quote guards · ${a.hedged} emergency trim`:`${a.hedged} trimmed · $${a.cost.toFixed(2)} cost`;
       else {
-        const pnl=ledger?ledger.cash+ledger.inv.reduce((n,q,i)=>n+q*state.prices[i],0):0;
+        const pnl=ledger?ledger.cash+ledger.inv.reduce((n,q,i)=>n+q*state.prices[i]*(state.instruments[i].multiplier||1),0):0;
         target.textContent=`Net ${pnl<0?'−':'+'}$${Math.abs(pnl).toFixed(2)} · ${a.fills} filled`;
         target.classList.toggle('losing-stream',pnl<-.005);
         target.title='Marked P&L of this unit’s actual order stream, including allocated closing trades and fees. Not a counterfactual measure of its contribution.';

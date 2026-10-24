@@ -1,6 +1,8 @@
+import { enableRegionalCompany } from './board.js';
 import { CARDS, byId } from './roster.js';
 import { progression } from './progression.js';
 import { BOARD,assignPositions } from './board.js';
+import { compatibleMarkets } from './markets.js';
 // Original tuning for this prototype, not TFT's live bag-size table.
 export const POOL_COPIES = [24,20,16,12,9];
 export function createPool(copies=POOL_COPIES) {
@@ -69,12 +71,13 @@ export function buy(company, slot) {
 }
 export function move(company, uid, swapUid = null) {
   const u = company.units.find(x => x.uid === uid); if(!u) return false;
+  if(!u.deployed&&company.board?.shared&&!compatibleMarkets(u.id).some(id=>company.activeRegions?.includes(id)))return false;
   if(u.deployed) { if(reserves(company).length >= company.benchLimit) return false; u.deployed = false;delete u.position; return true; }
   if(deployed(company).length >= company.floorLimit) {
     const other = company.units.find(x => x.uid === swapUid && x.deployed); if(!other) return false;
     other.deployed = false;u.position=other.position;delete other.position;
   }
-  u.deployed = true;assignPositions(deployed(company),company.board); return true;
+  u.deployed = true;assignPositions(deployed(company),company.board,company.activeRegions); return true;
 }
 export function sell(company, uid) {
   const u = company.units.find(x => x.uid === uid); if(!u) return false;
@@ -91,6 +94,7 @@ export function interestFor(credits) { return Math.min(5,Math.floor(Math.max(0,c
 export function incomeFor(credits) { const interest=interestFor(credits);return {base:4,interest,total:4+interest,balance:credits}; }
 export function refreshDay(company, week,day=1) {
   if(company.eliminated)return;
+  if(company.board?.shared)enableRegionalCompany(company,week,day);
   company.day=day;company.floorLimit=floorLimitFor(week,day);company.lastIncome=incomeFor(company.credits);company.credits+=company.lastIncome.total;
   if(!company.locked)reroll(company,week,true);
   return company.lastIncome;

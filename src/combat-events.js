@@ -5,5 +5,5 @@ export function stampEvents(s) {
   for(const e of s.events)if(e.eventId==null){e.eventId=++s.eventSequence;e.schemaVersion=EVENT_SCHEMA;e.tick=s.tick;e.simTimeMs=s.tick*500;e.kind=kinds[e.type]||e.type;s.replay.push({...e});}
 }
 export function replayRecord(s) {
-  return {schemaVersion:EVENT_SCHEMA,seed:s.seed,scenario:s.scenario,board:{...s.board},tickMs:500,units:s.firms.map(f=>f.units),events:s.replay.map(e=>({...e})),finalMarks:[...s.prices]};
+  return {schemaVersion:EVENT_SCHEMA,seed:s.seed,scenario:s.scenario,marketModel:s.regional?'regional':'legacy-proxy',instruments:s.instruments.map(m=>({id:m.id||m.ticker,market:m.market||m.ticker,multiplier:m.multiplier||1,priceScale:m.priceScale||100})),active:[...s.active],board:{...s.board},tickMs:500,units:s.firms.map(f=>f.units),events:s.replay.map(e=>({...e})),finalMarks:[...s.prices]};
 }

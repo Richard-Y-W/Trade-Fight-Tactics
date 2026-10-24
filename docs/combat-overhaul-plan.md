@@ -1,3 +1,11 @@
+# Shared-market iteration assessment (2026-10-23)
+
+Audited existing entry points, Pixi/HTML deployment, books/ledgers, roster, league, economy, events/replays, tests and prior plans before edits. Starting baseline: 69 Node tests and four browser tests, five proxy assets and mirrored halves. Preserved matching, deterministic streams, pool/economy and local support. Targeted changes implemented: viewport shell; structured regional map/unlocks; distinct priced instruments with tick/contract conventions; market-assigned jobs; shared ownership subslots and reveal; actual-event regional effects. [Current architecture and limitations](regional-market-architecture.md), [validation](regional-ux-and-validation.md).
+
+The legacy five-proxy profile remains explicit for historical headless fixtures, not the browser. No automatic open-inventory migration. Prior assessment below is historical.
+
+---
+
 # Combat overhaul: implementation assessment
 
 Baseline inspected 2026-10-23: README/context, current and historical design notes, all simulation/UI subsystems, recruitment and league modules, replay generator, audits and 52 automated tests. Baseline suite: 52/52. Four-duel headless benchmark: mean 0.986ms, p95 1.659ms, p99 1.941ms; excludes browser rendering.

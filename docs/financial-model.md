@@ -1,3 +1,9 @@
+# Current six-product model
+
+The browser now uses the regional profile: ETF, marked daily European call, duration bond, commodity basket, pip-quoted FX and credit bond. Contract multipliers enter cash, realized/unrealized P&L, costs, risk and attribution. Regional totals include allocated costs. Old proxy formulas below apply only to the historical profile. [Exact current assumptions, formulas, migration and limitations](regional-market-architecture.md).
+
+---
+
 # Financial model: current combat pass
 
 The battlefield pass adds local information delivery, actual routing latency, local automatic hedging, support costs and volatility/delay-aware passive spreads. Prefer [positioning-mechanics.md](positioning-mechanics.md) and [financial-consistency.md](financial-consistency.md) for those rules. Base ledger, hidden/public value, expiry and covariance formulas below remain applicable. Support-only firms no longer generate house quotes; old firm-wide support descriptions are superseded.
