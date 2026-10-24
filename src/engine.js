@@ -25,7 +25,7 @@ export function createDay(cards = [], seed = 12345, rival = ['maker', 'research'
   if(!SCENARIOS[scenario])throw new Error('Unknown game scenario');
   const regional=options.marketModel==='regional'||options.board?.shared;
   const instruments=regional?INSTRUMENTS:ASSETS,board=boardConfig({...options.board,shared:!!regional});
-  const s = { seed,regional,instruments,board,pendingJobs:[],scenario,conditions:SCENARIOS[scenario],tick:0,random:rng(seed),marketRandom:rng(seed+100003),assetRandom:instruments.map((_,a)=>rng(seed+400003+a*1009)),flowRandom:rng(seed+200003),prices:instruments.map(a=>a.price),previous:instruments.map(a=>a.price),history:instruments.map(a=>[a.price]),firms:[firm(cards,board,instruments),firm(rival,board,instruments)],events:[],done:false };
+  const s = { seed,roundId:options.roundId??`seed-${seed}`,regional,instruments,board,pendingJobs:[],scenario,conditions:SCENARIOS[scenario],tick:0,random:rng(seed),marketRandom:rng(seed+100003),assetRandom:instruments.map((_,a)=>rng(seed+400003+a*1009)),flowRandom:rng(seed+200003),prices:instruments.map(a=>a.price),previous:instruments.map(a=>a.price),history:instruments.map(a=>[a.price]),firms:[firm(cards,board,instruments),firm(rival,board,instruments)],events:[],done:false };
   if(options.enabled) s.firms[0].enabled=instruments.map((_,a)=>options.enabled[a]!==false);
   s.firms[0].option = option;
   if (option) s.firms[0].cash -= 8;

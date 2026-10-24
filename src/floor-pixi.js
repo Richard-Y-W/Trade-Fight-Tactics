@@ -15,7 +15,7 @@ export async function createFloorRenderer(host,{onSelect=()=>{},reduced=()=>fals
   host.replaceChildren(app.canvas);app.canvas.setAttribute('aria-label','Live trading floor: select units in the accessible floor cards below');
   let sheet=null;try{sheet=await Assets.load('/assets/kenney/characters/Spritesheet/roguelikeChar_transparent.png');sheet.source.scaleMode='nearest';}catch{/* Shape-based workstations remain fully playable. */}
   const backdrop=new Container(),scene=new Container(),effects=new Container(),heat=new Graphics(),links=new Graphics();app.stage.addChild(backdrop,heat,scene,links,effects);
-  const nodes=new Map(),markets=new Map(),pool=[],active=[];let state=null,signature='',lastEvent=0,frameMs=[],previousFrame=performance.now(),view={};
+  const nodes=new Map(),markets=new Map(),pool=[],active=[];let state=null,signature='',lastEvent=0,frameMs=[],previousFrame=performance.now(),view={},roundToken=null,nodeCreations=0,boardBuilds=0;
   for(let i=0;i<24;i++){const g=new Graphics();g.visible=false;effects.addChild(g);pool.push(g);}
   const numberPool=Array.from({length:8},()=>{const t=label('',15);t.anchor.set(.5);t.visible=false;effects.addChild(t);return t;}),numbers=[];
   const resize=()=>{const width=host.clientWidth||640,height=width*(state?.board.rows||8)/(state?.board.cols||8);host.style.height=`${height}px`;if(app.renderer.width!==Math.round(width)||app.renderer.height!==Math.round(height))app.renderer.resize(width,height);for(const layer of [backdrop,scene,effects,heat,links])layer.scale.set(width/800);};
@@ -25,8 +25,8 @@ export async function createFloorRenderer(host,{onSelect=()=>{},reduced=()=>fals
     g.clear();if(kind==='link')g.rect(-3,-3,6,6).fill(color);else if(kind==='quote')g.rect(-8,-6,12,7).fill(0x91dfad).rect(-3,2,12,7).fill(0x8fc1f0);else g.rect(-7,-4,14,8).fill(color).rect(-4,-1,8,2).fill(0x15241c);
     g.visible=true;g.alpha=1;active.push({g,from,to,start:performance.now(),duration:kind==='link'?650:850});
   }
-  function rebuild(s) {
-    scene.removeChildren().forEach(c=>c.destroy({children:true}));backdrop.removeChildren().forEach(c=>c.destroy());nodes.clear();markets.clear();
+  function rebuildMap(s) {
+    boardBuilds++;backdrop.removeChildren().forEach(c=>c.destroy());markets.clear();
     const cell=800/s.board.cols,height=s.board.rows*cell,grid=new Graphics();
     for(let row=0;row<s.board.rows;row++)for(let col=0;col<s.board.cols;col++){
       const m=MARKETS.find(m=>m.id===regionAt({col,row})),a=MARKETS.indexOf(m),active=s.active[a],x=col*cell,y=row*cell;
@@ -40,8 +40,13 @@ export async function createFloorRenderer(host,{onSelect=()=>{},reduced=()=>fals
       const price=label('',12);price.anchor.set(.5);price.position.set(x,y+1);backdrop.addChild(price);
       const result=label('',14);result.anchor.set(.5);result.position.set(x,y+19);backdrop.addChild(result);markets.set(a,{x,y,price,result});
     });
+  }
+  function syncUnits(s){const cell=800/s.board.cols,keep=new Set();
     s.firms.forEach((f,side)=>(side?(view.opponent||[]):f.units).forEach((u,i)=>{
       const tile=boardTile(u.position,side,s.board),c=byId(u.id),role=u.id==='specialist'?'volatility':c.capability,x=(tile.col+(side?.75:.25))*cell,y=tile.row*cell+25;
+      const key=`${side}:${u.uid??u.id}`;keep.add(key);const prior=nodes.get(key);
+      if(prior&&prior.unit.id===u.id&&prior.unit.star===u.star){prior.x=x;prior.y=y;prior.unit=u;prior.group.position.set(x,y);return;}
+      if(prior){prior.group.destroy({children:true});nodes.delete(key);}nodeCreations++;
       const group=new Container();group.position.set(x,y);group.scale.set(.65);group.eventMode='static';group.cursor='pointer';group.on('pointertap',()=>onSelect(side,String(u.uid??u.id)));scene.addChild(group);
       const pad=new Graphics().roundRect(-35,-12,70,105,5).fill(0x192b22).stroke({width:1,color:colors[side],alpha:.5});group.addChild(pad);
       const desk=new Graphics();const col=roleColors[role];
@@ -61,10 +66,15 @@ export async function createFloorRenderer(host,{onSelect=()=>{},reduced=()=>fals
       const metric=label('',25);metric.anchor.set(.5,0);metric.position.set(0,72);group.addChild(metric);
       nodes.set(`${side}:${u.uid??u.id}`,{group,desk,metric,pad,x,y,animation:{name:'idle',until:Infinity},unit:u,role});
     }));
+    for(const [key,n] of nodes)if(!keep.has(key)){n.group.destroy({children:true});nodes.delete(key);}
   }
   function update(s,options={}) {
-    state=s;view={...options,opponent:options.phase==='close'?s.firms[1].units:options.opponent};const next=JSON.stringify([s.firms[0].units,view.opponent||[]].map(us=>us.map(u=>[u.uid??u.id,u.star,u.position])))+s.active.join()+view.market+view.phase+JSON.stringify(s.board);
-    if(next!==signature){signature=next;rebuild(s);}
+    state=s;view=options;
+    const token=options.roundId??s.roundId??s.seed;
+    if(roundToken!==token){roundToken=token;lastEvent=0;for(const p of active)p.g.visible=false;active.length=0;for(const n of numbers)n.text.visible=false;numbers.length=0;for(const n of nodes.values()){n.lastNet=undefined;n.closedAt=undefined;n.revealedAt=undefined;n.animation={name:'idle',until:Infinity};}}
+    const next=JSON.stringify(s.board)+s.active.join();if(next!==signature){signature=next;rebuildMap(s);}syncUnits(s);
+    backdrop.alpha=view.phase==='prep'?.8:1;
+    if(['results','advance','prep','weekend'].includes(view.phase)){for(const p of active)p.g.visible=false;active.length=0;}
     resize();
     if(s.tick===0&&s.eventSequence<lastEvent)lastEvent=0;
     for(const [a,m] of markets){m.price.text=s.active[a]?`${s.instruments[a].ticker} $${s.prices[a].toFixed(a===4?4:2)}`:'';m.result.text=s.active[a]&&s.tick?`${s.firms[0].pnl[a].toFixed(1)} / ${s.firms[1].pnl[a].toFixed(1)} net`:'';}
@@ -77,11 +87,12 @@ export async function createFloorRenderer(host,{onSelect=()=>{},reduced=()=>fals
       if(s.tick>0&&n.lastNet!=null&&Math.abs(net-n.lastNet)>=.5&&!reduced()){
         const prior=numbers.find(p=>p.key===key),text=prior?.text||numberPool.find(t=>!t.visible);if(text){const delta=(prior?.delta||0)+net-n.lastNet;text.text=`Δ ${delta<0?'-':'+'}$${Math.abs(delta).toFixed(2)}`;text.style.fill=delta<0?0xffb28b:0xc7f291;text.visible=true;text.position.set(n.x,n.y);if(prior){prior.delta=delta;prior.start=performance.now();}else numbers.push({key,delta,text,x:n.x,y:n.y,start:performance.now()});}
       }n.lastNet=net;
-      n.metric.text=n.role==='research'?`${a?.signals||0} signals` :n.role==='hedge'?(n.unit.id==='clerk'?`${a?.guarded||0} guards`:`${a?.hedged||0} trimmed`):`${net<0?'-':'+'}$${Math.abs(net).toFixed(Math.abs(net)>=100?0:1)} · ${a?.fills||0} fills`;
-      n.metric.style.fill=net<-.01?0xffb68b:colors[side];
+      n.metric.text=n.role==='research'?`${a?.signals||0} sig`:n.role==='hedge'?(n.unit.id==='clerk'?`${a?.guarded||0} lim`:`${a?.hedged||0} trim`):`${net<0?'-':'+'}$${Math.abs(net).toFixed(Math.abs(net)>=10?0:1)}`;
+
+      n.metric.style.fill=net<-.01?0xffb68b:colors[side];n.pad.alpha=(view.selectedSide||0)===side&&String(view.selectedUnit)===String(unitKey(n.unit))?1:.65;
       if(view.phase==='prep'&&side)n.metric.text='SCOUT SNAPSHOT';
     }
-    const events=s.events.filter(e=>e.eventId>lastEvent);lastEvent=Math.max(lastEvent,...events.map(e=>e.eventId||0));
+    const events=s.events.filter(e=>e.eventId>lastEvent&&(e.roundId==null||e.roundId===s.roundId));lastEvent=Math.max(lastEvent,...events.map(e=>e.eventId||0));
     for(const e of events.filter(e=>e.type==='quote'&&e.source&&e.support?.length).slice(0,2)){
       const trader=nodes.get(`${e.firm}:${e.source.uid??e.source.id}`),research=nodes.get(`${e.firm}:${e.support[0].uid??e.support[0].id}`);if(trader&&research)pulse(research,trader,0xc59af1,'link');
     }
@@ -101,11 +112,11 @@ export async function createFloorRenderer(host,{onSelect=()=>{},reduced=()=>fals
       const now=performance.now();frameMs.push(now-previousFrame);previousFrame=now;if(frameMs.length>300)frameMs.shift();
     for(const n of nodes.values()){
       n.animation=advanceAnimation(n.animation,now);const mode=reduced()?'idle':n.animation.name;
-      n.desk.y=mode==='action'?Math.sin(now/55)*2:0;const rival=nodes.get(`1:${unitKey(n.unit)}`)===n;n.group.alpha=rival&&view.phase==='close'&&!reduced()?Math.max(0,1-(now-(n.closedAt??=now))/1000):rival&&view.phase==='opening'&&!reduced()?Math.min(1,(now-(n.revealedAt??=now))/1000):mode==='stress'?.7+Math.sin(now/45)*.15:1;
+      n.desk.y=mode==='action'?Math.sin(now/55)*2:0;const rival=nodes.get(`1:${unitKey(n.unit)}`)===n;n.group.alpha=rival&&view.phase==='advance'&&!reduced()?Math.max(0,1-(now-(n.closedAt??=now))/650):rival&&view.phase==='opening'&&!reduced()?Math.max(0,Math.min(1,(now-(n.revealedAt??=now)-250)/800)):mode==='stress'?.7+Math.sin(now/45)*.15:1;
       n.desk.tint=mode==='success'?0xc5ffbf:mode==='stress'?0xffb393:mode==='synergy'?0xdfbeff:0xffffff;
     }
     for(let i=active.length-1;i>=0;i--){const p=active[i],t=Math.min(1,(now-p.start)/p.duration);p.g.position.set(p.from.x+(p.to.x-p.from.x)*t,p.from.y+(p.to.y-p.from.y)*t-25*Math.sin(t*Math.PI));p.g.alpha=1-t*.4;if(t===1||reduced()){p.g.visible=false;active.splice(i,1);}}
     for(let i=numbers.length-1;i>=0;i--){const n=numbers[i],t=Math.min(1,(now-n.start)/850);n.text.position.set(n.x,n.y-20-25*t);n.text.alpha=1-t;n.text.scale.set(1+Math.sin(t*Math.PI)*.15);if(t===1||reduced()){n.text.visible=false;numbers.splice(i,1);}}
   });
-  return {update,metrics:()=>({renderer:app.renderer.name,effects:active.length,pool:pool.length,frameMs:[...frameMs]}),destroy(){observer.disconnect();app.destroy(true,{children:true});}};
+  return {update,metrics:()=>({renderer:app.renderer.name,effects:active.length,roundId:roundToken,nodeCreations,boardBuilds,nodes:nodes.size,pool:pool.length,frameMs:[...frameMs]}),destroy(){observer.disconnect();app.destroy(true,{children:true});}};
 }

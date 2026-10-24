@@ -13,15 +13,15 @@ test('complete playable week, Pixi combat, inspection, resized layout and reduce
   await expect(page.locator('#battle-readout')).toContainText('Trades & costs');
   await page.locator('.inspection-advanced summary').click();await expect(page.locator('.inspection-advanced')).toContainText('Realized');
   await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:'docs/media/ui-combat.png',fullPage:true});
-  await page.locator('#reduce-effects').check();await page.setViewportSize({width:780,height:1050});await advance(1000);
+  if(!await page.locator('#presentation-drawer').evaluate(e=>e.open))await page.locator('#presentation-drawer summary').click();await page.locator('#reduce-effects').check();await page.setViewportSize({width:780,height:1050});await advance(1000);
   await expect(page.locator('.unit-clash')).toHaveCount(0);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:'docs/media/ui-compact.png',fullPage:true});
   await page.setViewportSize({width:1440,height:1050});await advance(33000);
   await expect(page.locator('#day-result')).toBeVisible();await expect(page.locator('#closing-highlights')).toContainText('TOP ORDER STREAM');
   await page.screenshot({path:'docs/media/ui-closing.png',fullPage:true});
-  await page.locator('#next').click();
-  for(let d=2;d<=5;d++){await page.locator('#start').click();await advance(42000);await expect(page.locator('#day-result')).toBeVisible();await page.locator('#next').click();}
+  await page.locator('#next').click();for(let a=0;a<2;a++)await page.clock.fastForward(500);
+  for(let d=2;d<=5;d++){await page.locator('#start').click();await advance(42000);await expect(page.locator('#day-result')).toBeVisible();await page.locator('#next').click();for(let a=0;a<2;a++)await page.clock.fastForward(500);}
   await expect(page.locator('#phase-label')).toHaveText('WEEKEND DRAFT');await page.screenshot({path:'docs/media/ui-weekend.png',fullPage:true});
   expect(errors).toEqual([]);
 });

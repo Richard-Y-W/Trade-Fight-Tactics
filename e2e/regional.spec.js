@@ -4,7 +4,7 @@ test('shared regional floor fits desktop viewports, reveals rival, and completes
   await page.clock.install({time:new Date(1)});await page.goto('/');
   await expect(page.locator('#combat-floor')).toHaveAttribute('data-renderer','pixi');
   for(const [width,height] of [[1920,1080],[1440,900],[1366,768]]){
-    await page.setViewportSize({width,height});
+    await page.setViewportSize({width,height});await page.clock.runFor(400);
     const geometry=await page.evaluate(()=>{
       const r=id=>{const b=document.querySelector(id).getBoundingClientRect();return {x:b.x,y:b.y,w:b.width,h:b.height,b:b.bottom};};
       return {board:r('#tactical-board'),bench:r('#bench'),shop:r('#shop'),left:r('.control-sidebar'),right:r('.lobby'),scroll:document.documentElement.scrollHeight,viewport:innerHeight};
@@ -28,10 +28,10 @@ test('shared regional floor fits desktop viewports, reveals rival, and completes
     await page.locator('#start').click();await expect(page.locator('body')).toHaveAttribute('data-battle-phase','opening');
     await expect(page.locator('[data-tile-side="1"]').first()).toBeVisible();
     await advance(20);await page.screenshot({path:`docs/media/regional-day-${day}-combat.png`});
-    await advance(64);await expect(page.locator('#day-result')).toBeVisible();
-    await expect(page.locator('[data-tile-side="1"]')).toHaveCount(0);
+    await advance(65);await expect(page.locator('#day-result')).toBeVisible();
+    await expect(page.locator('[data-tile-side="1"]').first()).toBeVisible();
     await expect(page.locator('[data-tile-side="0"]')).toHaveCount(1);
-    await page.locator('#next').click();
+    await page.locator('#next').click();for(let a=0;a<2;a++)await page.clock.fastForward(500);
     if(day<5)await expect(page.locator('[data-market-select]:enabled')).toHaveCount([1,2,4,5,6][day]);
   }
   expect(errors).toEqual([]);
@@ -45,7 +45,7 @@ test('HTML fallback retains regional placement, live accounting, volume and keyb
   await page.locator('[data-buy="0"]').click();await page.locator('#bench [data-move]').click();
   const tile=page.locator('.deployment-tile:has([data-tile-side="0"])');
   await tile.focus();await page.keyboard.press('Delete');await expect(page.locator('[data-tile-side="0"]')).toHaveCount(0);
-  await page.locator('#bench [data-move]').click();await page.locator('#reduce-effects').check();await page.locator('#start').click();
+  await page.locator('#bench [data-move]').click();if(!await page.locator('#presentation-drawer').evaluate(e=>e.open))await page.locator('#presentation-drawer summary').click();await page.locator('#reduce-effects').check();await page.locator('#start').click();
   for(let i=0;i<20;i++)await page.clock.fastForward(500);
   await expect(page.locator('[data-tile-side="0"] .fallback-net')).not.toHaveText('');
   await expect(page.locator('[data-tile-side="0"]')).toHaveAttribute('title',/marked net.*filled/);

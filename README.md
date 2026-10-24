@@ -4,11 +4,13 @@
 
 A market-making autobattler where the market is the battlefield. Recruit traders, researchers and risk specialists, combine their traits, then watch your desk compete for the same orders as a rival. Your build decides which controls you get: let the algorithms work, intervene at the right moment, or assemble a hybrid.
 
-Forty seconds. One shared market. Your quotes, your inventory, your consequences.
+Thirty seconds to build. Forty seconds to trade. Three seconds to review. Then the next day begins.
 
 Deploy onto one shared **8 x 8 trading floor**, a patchwork of Equities / ETFs, Options / Vol, Rates, Commodities, FX and Credit. Units trade the product at their tile. Rival firms materialize in the same regions, in separate ownership slots. No role quotas; support-only and concentrated firms remain legal.
 
-[![Shared regional battle](docs/media/regional-day-3-combat.png)](docs/media/browser-battle.webm)
+[![Shared regional battle](docs/media/loop-1920-combat.png)](docs/media/browser-battle.webm)
+
+Preparation expands the bench and five-card shop. The opening bell compresses the shop and grows the square board; closing holds both formations for a settled three-second review, then advances automatically. Weekends wait for your choice. [Loop architecture and durations](docs/continuous-game-loop.md).
 
 Controls and actual unit accounting sit on the left; standings and scouting on the right. The square board, eight-slot bench and five-offer shop fit together at 1920x1080, 1440x900 and 1366x768. [Market architecture and financial limits](docs/regional-market-architecture.md), [UX and verification](docs/regional-ux-and-validation.md).
 
@@ -18,7 +20,7 @@ Controls and actual unit accounting sit on the left; standings and scouting on t
 
 [![Actual browser combat: pixel-art trading floor](docs/media/ui-battle-viewport.png)](docs/media/browser-battle.webm)
 
-**[Watch the actual browser battle (WebM)](docs/media/browser-battle.webm)** — a real 40-second game session captured in headless Edge, including preparation and the closing bell. No accelerated simulation clock. Kenney CC0 characters and original workstations render through PixiJS v8. [Art and dependency licenses](docs/assets-and-licenses.md).
+**[Watch the actual browser battle (WebM)](docs/media/browser-battle.webm)** — a real 40-second game session captured in headless Edge, including preparation, opening, the closing/results hold and automatic next preparation. No accelerated simulation clock. Kenney CC0 characters and original workstations render through PixiJS v8. [Art and dependency licenses](docs/assets-and-licenses.md).
 
 The clips below are separately labeled **offline engine visualizations**:
 
@@ -40,7 +42,9 @@ Requires **Node.js 22+**. Playing needs no package installation.
 npm run dev
 ```
 
-Open **http://127.0.0.1:5173**. Recruit with your starting 10 credits, deploy onto the floor, then **Ring the bell**. Select a market to inspect quotes. Your units unlock controls such as Press, directional tilt and emergency hedging. Sound starts off.
+Open **http://127.0.0.1:5173**. Recruit with your starting 10 credits, deploy onto the floor, then let the 30-second preparation timer open the market, or choose **Ready early**. Select a market to inspect quotes. Your units unlock controls such as Press, directional tilt and emergency hedging. Pause stops the whole match clock; inspection dialogs pause and resume it automatically. Sound starts off.
+
+The bench stays directly under the floor. Combat locks purchases and offers an optional Expand control for shop inspection. Layout changes preserve offers, units and the same canvas. [Prep screenshot](docs/media/loop-1440-prep.png), [combat](docs/media/loop-1440-combat.png), [settled results](docs/media/loop-1440-results.png).
 
 ## A desk that grows with the week
 
@@ -97,12 +101,13 @@ The browser game uses plain JavaScript, HTML/CSS menus, PixiJS v8 combat and acc
 | --- | --- |
 | Market, accounting and risk | [engine.js](src/engine.js), [market-session.js](src/market-session.js), [orderbook.js](src/orderbook.js) |
 | Units, traits and recruitment | [roster.js](src/roster.js), [company.js](src/company.js) |
+| Authoritative phases and timing | [lifecycle.js](src/lifecycle.js), [continuous loop](docs/continuous-game-loop.md) |
 | Regional map and real products | [markets.js](src/markets.js) |
 | Bot firms and daily progression | [league.js](src/league.js), [progression.js](src/progression.js) |
 | UI and battle explanations | [app.js](src/app.js), [battle-readout.js](src/battle-readout.js) |
 | Reproducible showcases | [showcases.mjs](scripts/showcases.mjs) |
 
-79 automated Node tests cover accounting, supply conservation, queues, upgrades, daily unlocks, controls, attribution, option expiry, information boundaries, covariance, placement, latency, local support and a full-week UI journey. Six browser checks cover actual dragging/swaps/bench return, regional geometry, scouting, opening continuity, market selection, Pixi, a full week/weekend, inspection, resizing, reduced effects, missing-character fallback and real-time video/frame measurements. Screenshots and audit artifacts live under `docs/media/` and `docs/audits/`. Human beginner comprehension remains untested; the [readability protocol](docs/visual-readability-tests.md) is a release gate.
+85 automated Node tests cover accounting, supply conservation, queues, upgrades, daily unlocks, controls, attribution, option expiry, information boundaries, covariance, placement, latency, local support and a full-week UI journey. Nine browser checks cover actual dragging/swaps/bench return, regional geometry, scouting, opening continuity, market selection, Pixi, a full week/weekend, inspection, resizing, reduced effects, missing-character fallback and real-time video/frame measurements. Screenshots and audit artifacts live under `docs/media/` and `docs/audits/`. Human beginner comprehension remains untested; the [readability protocol](docs/visual-readability-tests.md) is a release gate.
 
 ## What's next
 

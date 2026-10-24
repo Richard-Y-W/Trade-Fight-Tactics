@@ -43,11 +43,14 @@ export function createDeploymentUI(root,{canEdit,onPlace,onSelect,onBench}){
     const signature=JSON.stringify([next.own,next.opponent,canEdit(),next.board,next.activeRegions]);if(grid.dataset.signature===signature)return;grid.dataset.signature=signature;
     grid.style.gridTemplateColumns=`repeat(${next.board.cols},1fr)`;grid.style.gridTemplateRows=`repeat(${next.board.rows},1fr)`;
     grid.setAttribute('aria-label','Shared 8 by 8 regional trading floor');
+    const focused=root.activeElement?.closest?.('[data-tile-row]'),focusedUnit=root.activeElement?.closest?.('[data-tile-uid]')?.dataset.tileUid,focusedSide=root.activeElement?.closest?.('[data-tile-side]')?.dataset.tileSide;
+    const focusPosition=focused?{col:focused.dataset.tileCol,row:focused.dataset.tileRow}:null;
     grid.innerHTML=Array.from({length:next.board.cols*next.board.rows},(_,i)=>{
       const col=i%next.board.cols,row=Math.floor(i/next.board.cols),region=MARKETS.find(m=>m.id===regionAt({col,row})),active=!next.board.shared||next.activeRegions.includes(region.id),os=occupants.get(`${col}:${row}`)||[];
       const content=os.map(o=>`<button class="unit-subslot side-${o.side}" data-tile-uid="${o.u.uid??o.u.id}" data-tile-side="${o.side}" aria-label="${o.side?'Rival':'Your'} ${byId(o.u.id).name} in ${region.name}" title="${byId(o.u.id).name} / ${region.name}"><span class="tile-fallback">${byId(o.u.id).name}<b class="fallback-net"></b></span></button>`).join('');
       return `<div class="deployment-tile ${active&&canEdit()?'legal-tile':''} ${os.length?'occupied':''} ${active?'':'locked-region'}" style="--region-color:#${region.color.toString(16)}" data-region="${region.id}" data-tile-col="${col}" data-tile-row="${row}" role="gridcell" tabindex="0" aria-label="${region.name}, tile ${col+1}, ${row+1}${active?'':', unlocks '+region.unlock}" title="${region.description}${active?'':' Unlocks '+region.unlock}">${region.anchor.col===col&&region.anchor.row===row?`<span class="region-fallback">${region.short}${active?'':' / '+region.unlock}</span>`:''}${content}</div>`;
     }).join('');
+    if(focusPosition){const tile=grid.querySelector(`[data-tile-col="${focusPosition.col}"][data-tile-row="${focusPosition.row}"]`);(tile?.querySelector(`[data-tile-uid="${focusedUnit}"][data-tile-side="${focusedSide}"]`)||tile)?.focus({preventScroll:true});}
     root.querySelectorAll('#bench [data-instance]').forEach(el=>el.draggable=false);
   }};
 }

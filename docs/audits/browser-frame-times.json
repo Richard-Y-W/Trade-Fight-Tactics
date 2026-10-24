@@ -1,7 +1,7 @@
 {
-  "scope": "Real-time headless Edge browser, full UI and Pixi; requestAnimationFrame intervals, not GPU timings. One 40-second seeded opening session; screenshot overhead included. Machine-specific, not an FPS guarantee.",
-  "samples": 550,
-  "meanMs": 72.80254545454545,
-  "p95Ms": 200.10000000000218,
-  "p99Ms": 240.10000000000036
+  "scope": "Real-time headless Edge browser, full UI and Pixi; requestAnimationFrame intervals, not GPU timings. One real-time continuous cycle: preparation, reveal, 40-second market, settled results and automatic next preparation; screenshot/recording overhead included. Machine-specific, not an FPS guarantee.",
+  "samples": 3372,
+  "meanMs": 13.77336892052207,
+  "p95Ms": 13.5,
+  "p99Ms": 13.60000000000582
 }

@@ -1,3 +1,9 @@
+# Phase-aware update
+
+The shared regional board now grows during combat and yields height to readable drafting during preparation. Bench/shop use existing CC0 character sprite crops alongside role symbols; no new third-party art was introduced. Unit board statistics are compact, with full names and detail in inspection. Both firms remain visible during results. [Current design and measured artifacts](continuous-game-loop.md).
+
+---
+
 # Current regional iteration: Visual design
 
 The browser now uses the shared six-market floor, deterministic ownership subslots, market-assigned quotes/research, a marked daily ETF call and duration/spread/pip-aware instruments. Unit roles and finite support are preserved; the Volatility PM now quotes calls, and Relative Value Lead trades the rates/credit relationship when both markets are open. See [regional architecture](regional-market-architecture.md) and [UX, animation vocabulary and current tests](regional-ux-and-validation.md). Human beginner readability testing remains unperformed. Historical notes follow.

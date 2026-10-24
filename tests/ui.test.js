@@ -7,15 +7,16 @@ test('company UI recruits, deploys, locks, trades, shows an inline result, and a
   const window = new Window({url:'http://localhost:5173'});
   window.document.write(await readFile(new URL('../index.html',import.meta.url),'utf8'));
   const originals = {window:globalThis.window, document:globalThis.document,setInterval:globalThis.setInterval,clearInterval:globalThis.clearInterval,setTimeout:globalThis.setTimeout};
-  let nextTick;
+  let nextTick,fakeNow=0;const originalPerformanceNow=performance.now;performance.now=()=>fakeNow;
   globalThis.window=window; globalThis.document=window.document;
-  globalThis.setInterval=fn=>{ nextTick=fn; return 1; };
+  globalThis.setInterval=fn=>{ nextTick=()=>{fakeNow+=500;fn();}; return 1; };
   globalThis.clearInterval=()=>{};
   globalThis.setTimeout=fn=>{ fn(); return 1; };
   const originalNow=Date.now; Date.now=()=>1;
   try {
     await import('../src/app.js');
     const $=id=>window.document.getElementById(id);
+    const until=phase=>{for(let n=0;n<170&&window.document.body.dataset.battlePhase!==phase;n++)nextTick();assert.equal(window.document.body.dataset.battlePhase,phase);};
     assert.equal($('start').disabled,true);
     assert.equal(window.document.querySelectorAll('.shop-card').length,5);
     assert.match($('shop').textContent,/Entry/);
@@ -53,33 +54,35 @@ test('company UI recruits, deploys, locks, trades, shows an inline result, and a
     $('lock-shop').click(); assert.equal($('lock-shop').getAttribute('aria-pressed'),'true');
     const offers=()=>[...window.document.querySelectorAll('[data-offer-id]')].map(el=>el.dataset.offerId);
     const locked=offers();
-    $('start').click(); assert.equal($('control-status').textContent,'CONNECTED');
+    $('pause').click();assert.equal($('start').disabled,true);$('pause').click();assert.equal($('start').disabled,false);
+    $('start').click();until('live'); assert.equal($('control-status').textContent,'CONNECTED');
     assert.equal(window.document.querySelectorAll('#desk .unit-stage').length,3);
     assert.equal(window.document.querySelectorAll('.match-row').length,3);
     $('pause').click(); const paused=$('timer').textContent; nextTick(); assert.equal($('timer').textContent,paused); $('pause').click();
     window.document.querySelector('[data-action="stance"]').click(); assert.match($('controls').textContent,/Defensive/);
     for(let i=0;i<80;i++)nextTick();
     assert.ok([...window.document.querySelectorAll('#desk .company-unit')].some(el=>Number(el.dataset.sequence)>0));
-    assert.equal($('day-result').hidden,false); assert.equal(window.document.querySelector('#recap'),null);
+    until('results');$('pause').click();assert.equal($('next').disabled,true);const heldScore=$('your-score').textContent;nextTick();assert.equal($('your-score').textContent,heldScore);$('pause').click();assert.equal($('next').disabled,false);assert.equal($('day-result').hidden,false); assert.equal(window.document.querySelector('#recap'),null);
     assert.match($('recap-title').textContent,/edge|day|finish|match|doors/);
     assert.notEqual($('your-score').textContent,'+$0.00');
-    $('next').click(); assert.equal($('day-result').hidden,true); assert.match($('day-title').textContent,/Day 2/);
+    $('next').click();until('prep'); assert.equal($('day-result').hidden,true); assert.match($('day-title').textContent,/Day 2/);
     assert.match($('slots-label').textContent,/3 \/ 4/);assert.equal(window.document.querySelectorAll('.asset:not([hidden])').length,2);
     assert.equal($('lock-shop').getAttribute('aria-pressed'),'true'); assert.deepEqual(offers(),locked);
     window.document.querySelector('[data-player="ivory"]').click(); assert.match($('lobby-inspect').textContent,/Ivory Research/);
     $('help').click(); assert.equal($('help-dialog').open,true); $('close-help').click();
     for(let day=2;day<=5;day++) {
       assert.equal(window.document.querySelectorAll('.asset:not([hidden])').length,[1,2,4,5,6][day-1]);
-      $('start').click(); for(let tick=0;tick<80;tick++)nextTick(); assert.equal($('day-result').hidden,false); $('next').click();
+      $('start').click();until('live');for(let tick=0;tick<80;tick++)nextTick();until('results');assert.equal($('day-result').hidden,false);$('next').click();until(day===5?'weekend':'prep');
     }
     assert.equal($('phase-label').textContent,'WEEKEND DRAFT');
+    $('pause').click();assert.ok([...window.document.querySelectorAll('[data-option]')].every(b=>b.disabled));nextTick();assert.equal($('phase-label').textContent,'PAUSED');$('pause').click();
     window.document.querySelector('[data-option="put"]').click();
     assert.match($('era').textContent,/WEEK 02/); assert.match($('slots-label').textContent,/3 \/ 7/);
     $('start').click(); assert.equal($('your-score').textContent,'−$8.00');
     for(let tick=0;tick<80;tick++)nextTick();
-    assert.equal($('day-result').hidden,false);
+    until('results');assert.equal($('day-result').hidden,false);
     $('reset').click(); assert.equal($('credits').textContent.trim(),'10 ◎'); assert.equal($('start').disabled,true);
   } finally {
-    Date.now=originalNow; Object.assign(globalThis,originals); await window.happyDOM.close();
+    performance.now=originalPerformanceNow;Date.now=originalNow; Object.assign(globalThis,originals); await window.happyDOM.close();
   }
 });

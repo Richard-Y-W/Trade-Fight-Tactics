@@ -19,7 +19,8 @@
     "audit:battlefield": "node scripts/audit-battlefield.mjs",
     "check:battlefield": "node --check src/board.js && node --check src/positioning.js && node --check src/board-ui.js && node --check src/board-overlays.js && node --check src/floor-pixi.js",
     "audit:regional": "node scripts/audit-regional.mjs",
-    "check:regional": "node --check src/markets.js && node --check src/board-ui.js && node --check src/app.js"
+    "check:regional": "node --check src/markets.js && node --check src/board-ui.js && node --check src/app.js",
+    "check:loop": "node --check src/lifecycle.js && node --check src/app.js && node --check src/board-ui.js && node --check src/floor-pixi.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",

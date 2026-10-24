@@ -1,0 +1,40 @@
+import { writeFile } from 'node:fs/promises';
+import { test,expect } from '@playwright/test';
+for(const [width,height] of [[1920,1080],[1440,900],[1366,768]])test(`automatic phases and visual hierarchy at ${width}x${height}`,async({page})=>{
+  test.setTimeout(120000);const errors=[];page.on('pageerror',e=>errors.push(e.stack));
+  await page.addInitScript(()=>{Date.now=()=>1;});await page.setViewportSize({width,height});await page.clock.install({time:new Date(1)});await page.goto('/');
+  await expect(page.locator('#combat-floor')).toHaveAttribute('data-renderer','pixi');
+  const until=async phase=>{for(let n=0;n<170&&await page.locator('body').getAttribute('data-battle-phase')!==phase;n++)await page.clock.fastForward(500);await expect(page.locator('body')).toHaveAttribute('data-battle-phase',phase);};
+  const geometry=()=>page.evaluate(()=>{const box=s=>{const r=document.querySelector(s).getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height,b:r.bottom};};return {board:box('#tactical-board'),bench:box('.bench-section'),shop:box('.shop-section'),left:box('.control-sidebar'),right:box('.lobby'),scroll:document.documentElement.scrollHeight,scrollW:document.documentElement.scrollWidth,title:parseFloat(getComputedStyle(document.querySelector('.shop-card h3')).fontSize),cost:parseFloat(getComputedStyle(document.querySelector('.shop-card .cost')).fontSize)};});
+  for(const slot of [0,1,3]){await page.locator(`[data-buy="${slot}"]`).click();await page.locator('#bench [data-move]').last().click();}
+  for(const slot of [2,4])await page.locator(`[data-buy="${slot}"]`).click();await page.locator('#reroll').click();
+  await page.evaluate(()=>{document.querySelector('.debug-panel').open=true;});await page.locator('[data-market-select="0"]').click();
+  await page.clock.runFor(400);const prep=await geometry(),renderBefore=await page.locator('#debug-state').evaluate(el=>JSON.parse(el.textContent).render);
+  expect(prep.board.h).toBeGreaterThan(300);expect(prep.title).toBeGreaterThanOrEqual(14);expect(prep.cost).toBeGreaterThanOrEqual(17);expect(prep.bench.h).toBeGreaterThanOrEqual(89);
+  expect(prep.scroll).toBeLessThanOrEqual(height);expect(prep.scrollW).toBeLessThanOrEqual(width);expect(prep.shop.b).toBeLessThanOrEqual(height);
+  await page.evaluate(()=>{window.keptCanvas=document.querySelector('canvas');window.keptOffer=document.querySelector('[data-buy="2"]');window.keptBench=document.querySelector('#bench [data-instance]');});
+  const offers=await page.locator('[data-offer-id]').evaluateAll(ns=>ns.map(n=>n.dataset.offerId));
+  await page.screenshot({path:`docs/media/loop-${width}-prep.png`});
+  // The timer, without Ready, starts the day.
+  await until('opening');await expect(page.locator('[data-buy]:enabled')).toHaveCount(0);await page.clock.runFor(150);const duringResize=await geometry();expect(Math.abs(duringResize.board.w-duringResize.board.h)).toBeLessThan(2);await expect(page.locator('#your-flow')).toHaveText('0 fills');
+  await until('live');await page.clock.runFor(450);const combat=await geometry(),renderAfter=await page.locator('#debug-state').evaluate(el=>JSON.parse(el.textContent).render);
+  expect(renderAfter.boardBuilds).toBe(renderBefore.boardBuilds);expect(renderAfter.nodeCreations-renderBefore.nodeCreations).toBe(await page.locator('[data-tile-side="1"]').count());
+  expect(combat.board.h).toBeGreaterThan(prep.board.h+70);expect(Math.abs(combat.board.w-combat.board.h)).toBeLessThan(2);expect(combat.shop.h).toBeLessThan(prep.shop.h-50);
+  expect(combat.shop.b).toBeLessThanOrEqual(height);expect(combat.scroll).toBeLessThanOrEqual(height);
+  expect(await page.locator('[data-offer-id]').evaluateAll(ns=>ns.map(n=>n.dataset.offerId))).toEqual(offers);
+  expect(await page.evaluate(()=>window.keptCanvas===document.querySelector('canvas')&&window.keptOffer===document.querySelector('[data-buy="2"]')&&window.keptBench===document.querySelector('#bench [data-instance]'))).toBe(true);
+  for(let n=0;n<16;n++)await page.clock.fastForward(500);
+  await page.screenshot({path:`docs/media/loop-${width}-combat.png`});
+  await page.locator('#pause').click();const pausedTimer=await page.locator('#timer').textContent(),pausedPnl=await page.locator('#your-score').textContent();await page.clock.fastForward(5000);await expect(page.locator('#timer')).toHaveText(pausedTimer);await expect(page.locator('#your-score')).toHaveText(pausedPnl);await page.locator('#pause').click();
+  await page.locator('#shop-expand').click();await page.clock.runFor(400);const expanded=await geometry();expect(expanded.shop.h).toBeGreaterThan(combat.shop.h+50);expect(expanded.scroll).toBeLessThanOrEqual(height);
+  expect(await page.locator('[data-offer-id]').evaluateAll(ns=>ns.map(n=>n.dataset.offerId))).toEqual(offers);await page.locator('#shop-expand').click();await page.clock.runFor(400);
+  await until('results');const final=await page.locator('#your-score').textContent(),hp=await page.locator('#your-health').textContent();
+  await expect(page.locator('[data-tile-side="1"]').first()).toBeVisible();await expect(page.locator('#day-result')).toBeVisible();
+  const results=await geometry();await page.screenshot({path:`docs/media/loop-${width}-results.png`});
+  for(let i=0;i<4;i++)await page.clock.fastForward(500);
+  await expect(page.locator('body')).toHaveAttribute('data-battle-phase','results');await expect(page.locator('#your-score')).toHaveText(final);await expect(page.locator('#your-health')).toHaveText(hp);
+  await until('prep');await page.clock.runFor(400);await expect(page.locator('#day-title')).toContainText('Day 2');await expect(page.locator('[data-tile-side="1"]')).toHaveCount(0);
+  await expect(page.locator('[data-tile-side="0"]')).toHaveCount(3);await expect(page.locator('#bench .company-unit')).toHaveCount(2);await expect(page.locator('#day-result')).toBeHidden();
+  const nextPrep=await geometry();await page.screenshot({path:`docs/media/loop-${width}-next-prep.png`});
+  await writeFile(`docs/audits/phase-layout-${width}.json`,JSON.stringify({viewport:{width,height},prep,combat,results,nextPrep,renderer:{before:{...renderBefore,frameMs:undefined},after:{...renderAfter,frameMs:undefined}},scope:'Actual Edge geometry and font sizes; screenshots manually inspected separately. Full 80-step trading day, frozen scores/HP during results; no clipping or document scrolling.'},null,2));expect(errors).toEqual([]);
+});

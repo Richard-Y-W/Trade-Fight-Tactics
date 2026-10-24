@@ -1,3 +1,9 @@
+# Current phase-aware presentation
+
+The static layout and immediate closing fade described below are superseded by the continuous loop: prep expands drafting, combat expands the board, results holds both formations for 3s, advance fades the rival, and the next day starts automatically. Full current phase configuration, layout, artifacts and verification: [continuous-game-loop.md](continuous-game-loop.md). Historical regional notes follow.
+
+---
+
 # Regional floor UX and verification
 
 ## Presentation

@@ -1,3 +1,4 @@
+import { createLifecycle } from './lifecycle.js';
 import { createBattleReadout } from './battle-readout.js';
 import { createCombatFloor } from './floor-bridge.js';
 import { createDeploymentUI } from './board-ui.js';
@@ -44,9 +45,22 @@ compactTools.append($('battle-actions'),document.querySelector('.floor-toolbar')
 arena.prepend(document.querySelector('.scoreboard'),boardSection,compactTools,benchSection,shopSection);
 left.append($('traits'),document.querySelector('.desk-heading'),$('company-notice'),document.querySelector('.market-footer'));
 left.append($('exchange-status'));
-document.querySelector('.topbar').append($('help'));
+document.querySelector('.topbar').append($('help'),$('pause'));$('pause').className='secondary';$('pause').title='Pause the match clock and financial simulation';
 $('board-width').closest('label').hidden=true;
+const roundStatus=document.createElement('span');roundStatus.id='round-status';roundStatus.setAttribute('aria-live','polite');$('battle-actions').append(roundStatus);
 $('placement-preview').textContent='Drag a reserve into an open market. Both firms share this floor.';
+const floorSurface=document.createElement('div');floorSurface.className='floor-surface';
+const floorBrief=document.createElement('aside');floorBrief.className='floor-context floor-brief';
+const floorTape=document.createElement('aside');floorTape.className='floor-context floor-tape';floorTape.id='floor-tape';
+floorBrief.innerHTML='<span class="context-kicker">THE TRADING FLOOR</span><h2 id="floor-phase-title">Build your edge.</h2><p id="floor-phase-caption">Recruit, deploy, connect.</p>';
+floorBrief.append($('market-selector'),document.querySelector('.board-controls'),$('placement-preview'));floorBrief.querySelector('#placement-preview').setAttribute('role','status');
+document.querySelector('.topbar').append($('battle-actions'));
+$('presentation-drawer').append(document.querySelector('.floor-toolbar'));
+compactTools.remove();const dayCue=document.createElement('span');dayCue.id='day-cue';dayCue.setAttribute('aria-live','polite');
+floorSurface.append(dayCue,floorBrief,$('tactical-board'),floorTape);boardSection.replaceChildren(floorSurface);
+const shopToggle=document.createElement('button');shopToggle.id='shop-expand';shopToggle.className='secondary';shopToggle.textContent='Expand';shopToggle.setAttribute('aria-expanded','false');document.querySelector('.shop-actions').prepend(shopToggle);
+shopToggle.addEventListener('click',()=>{const expanded=document.body.dataset.shopExpanded!=='true';document.body.dataset.shopExpanded=String(expanded);shopToggle.setAttribute('aria-expanded',String(expanded));shopToggle.textContent=expanded?'Compact':'Expand';});
+
 const money = n => `${n < 0 ? '−' : '+'}$${Math.abs(n).toFixed(2)}`;
 const icons = {
   speed: '<path d="m8 22 12-15-3 12h11L16 34l3-12Z"/><path d="M5 12h7M3 18h6M5 28h7"/>',
@@ -60,17 +74,69 @@ const icon = name => `<svg class="unit-icon" viewBox="0 0 40 40" fill="none" str
 const marketFeel=createMarketFeel(document,icon);
 const battleReadout=createBattleReadout(document);
 const combatFloor=createCombatFloor(document);
-let matchSeed=Date.now()>>>0;
+let matchSeed=Date.now()>>>0,matchSerial=0;
 let company=enableRegionalCompany(createCompany(matchSeed),1,1),lobby=makeLobby(company.pool,company,matchSeed),otherMatches=[],inspectPlayer='cobalt',selectedUnit=null;
 let cards = [], day = 1, week = 1, health = [100, 100], phase = 'prep', selected = 0;
-let state = createDay([],1,[],null,{marketModel:'regional'}), interval = null, openingTimeout = null, paused = false, option = null, sound = false, audio = null;
+let state = createDay([],1,[],null,{marketModel:'regional'}), interval = null, paused = false, option = null, sound = false, audio = null;
 let previousScores = [0, 0];
 let ghost=scoutSnapshot(lobby[1]),overlayMode='activity',boardSelection=null;
 const deployment=createDeploymentUI(document,{canEdit:()=>phase==='prep',onPlace:(uid,p)=>{if(phase!=='prep')return false;const ok=placeUnit(company,uid,p);if(ok)syncCompany();return ok;},onBench:uid=>{if(phase!=='prep')return false;const ok=placeUnit(company,uid,null);if(ok)syncCompany();return ok;},onSelect:selectBoardUnit});
 function selectBoardUnit(side,key){boardSelection={side,key};if(side&&phase==='prep'){const u=ghost.units.find(u=>String(u.uid??u.id)===key);if(u)inspectUnit(u.id,null,u.star);paintNumbers();return;}document.dispatchEvent(new window.CustomEvent('watch-unit',{detail:{side,key}}));$('analytics-drawer').open=true;paintNumbers();}
 let marketEnabled=ASSETS.map(()=>true);
-const sessionOptions=()=>({marketModel:'regional',activeRegions:progression(week,day).marketIds,board:company.board,enabled:marketEnabled,activeMarkets:progression(week,day).markets,scenario:progression(week,day).scenario});
+const sessionOptions=()=>({marketModel:'regional',roundId:`${matchSeed}/${matchSerial}/${week}/${day}`,activeRegions:progression(week,day).marketIds,board:company.board,enabled:marketEnabled,activeMarkets:progression(week,day).markets,scenario:progression(week,day).scenario});
 const daySeed=()=>(matchSeed+week*107+day*31)>>>0;
+
+const lifecycle=createLifecycle({
+  reducedMotion:()=>!!$('reduce-effects').checked||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
+  onEnter:enterPhase,onTradeTick:tick,onClock:paintClock,
+  nextRound:()=>health.some(h=>!h)?'complete':day===5?'weekend':'prep',
+});
+let lastClock=performance.now();
+function flushClock(){const now=performance.now(),delta=Math.max(0,now-lastClock);lastClock=now;lifecycle.advance(delta);}
+function paintClock(clock=lifecycle.snapshot()){
+  const seconds=Math.ceil(clock.remaining/1000),value=Number.isFinite(seconds)?seconds:0;
+  const timerText=Number.isFinite(seconds)?`${Math.floor(value/60)}:${String(value%60).padStart(2,'0')}`:phase==='weekend'?'CHOICE':'FINAL';if($('timer').textContent!==timerText)$('timer').textContent=timerText;
+  $('timer').classList.toggle('urgent',!clock.paused&&((phase==='prep'&&value<=5)||(phase==='live'&&value<10)));
+  $('pause').hidden=['initializing','complete'].includes(phase);
+  $('pause').textContent=clock.paused?'Resume':'Pause';
+  $('start').disabled=phase!=='prep'||!deployed(company).length||clock.paused;
+  if(phase==='results')$('next').disabled=clock.paused;
+  document.querySelectorAll('[data-option]').forEach(b=>b.disabled=clock.paused);
+  const labels={prep:'PREPARATION',opening:'OPENING BELL',live:'MARKET OPEN',closing:'CLOSING BELL',results:'RESULTS',advance:'NEXT DAY',weekend:'WEEKEND DRAFT',complete:'MATCH COMPLETE'};
+  $('phase-label').textContent=clock.paused?'PAUSED':labels[phase];
+  $('clock-label').textContent=({prep:'PREP ENDS IN',opening:'OPENING',live:'TO THE CLOSE',closing:'SETTLED',results:'REVIEW',advance:'NEXT DAY',weekend:'YOUR CHOICE',complete:'FINAL RESULT'})[phase];
+  $('round-status').textContent=phase==='prep'?`DAY ${day} / ${value}s TO BUILD`:phase==='results'?`NEXT PHASE IN ${value}s`:labels[phase];
+}
+let returnFocusToDraft=false;
+function enterPhase(next,info){
+  const focusBefore=document.activeElement;if(next==='advance'&&focusBefore?.id==='next')returnFocusToDraft=true;
+  phase=next;paused=false;if(next==='prep'){document.body.dataset.shopExpanded='false';shopToggle.setAttribute('aria-expanded','false');shopToggle.textContent='Expand';}document.body.dataset.battlePhase=phase;
+  document.querySelector('.app').dataset.phase=phase;
+  document.body.dataset.layout=['prep','weekend'].includes(phase)?'preparation':'combat';
+  if(next==='prep'){
+    const previousMarkets=state.active.map((v,a)=>v?MARKETS[a].id:null).filter(Boolean);
+    if(info.previous==='advance')advanceDay();
+    else if(info.previous==='weekend')advanceWeek();
+    marketFeel.reset(state);document.querySelectorAll('.floating,.market-flight,.unit-clash,.pnl-burst,.flow-chain').forEach(n=>n.remove());
+    $('day-result').hidden=true;paintPrep();
+    const newlyOpen=company.activeRegions.filter(id=>!previousMarkets.includes(id));$('day-cue').textContent=`DAY ${day} / PREPARATION${newlyOpen.length?' / '+newlyOpen.map(id=>MARKETS.find(m=>m.id===id).name).join(' + ')+' OPEN':''}`;animate($('day-cue'),'day-cue-show');
+  }else if(next==='opening')openDay();
+  else if(next==='live'){beep(700,.18);paintControls();paintNumbers();}
+  else if(next==='closing')closeDay();
+  else if(next==='results'){$('day-result').hidden=false;$('next').disabled=false;$('next').textContent='Continue now';paintNumbers();}
+  else if(next==='advance'){$('day-result').hidden=true;paintNumbers();}
+  else if(next==='weekend'){weekend();paintNumbers();}
+  else if(next==='complete'){$('day-result').hidden=false;$('next').disabled=false;$('next').textContent='New match';paintNumbers();}
+  if(['opening','closing','results','advance','complete'].includes(next)){paintShop();updateBenchAvailability();}
+  paintClock();
+  if(next==='opening'&&focusBefore?.matches('[data-buy],[data-move],[data-sell],#start'))$('pause').focus({preventScroll:true});
+  if(next==='prep'&&returnFocusToDraft){returnFocusToDraft=false;(document.querySelector('[data-buy]:not(:disabled)')||$('catalog-open')).focus({preventScroll:true});}
+}
+function updateBenchAvailability(){
+  document.querySelectorAll('[data-move],[data-sell]').forEach(b=>b.disabled=phase!=='prep');
+  $('start').disabled=phase!=='prep'||!deployed(company).length||paused;
+  $('start').textContent=phase==='prep'?'Ready early':phase==='weekend'?'Choose a weekend contract':'Trading desk locked';
+}
 
 function beep(pitch = 440, length = .06) {
   if (!sound || !audio) return;
@@ -103,9 +169,12 @@ function paintMap() {
 function paintDesk() {
   const floor = deployed(company), bench = reserves(company), editable = phase === 'prep';
   $('desk').style.setProperty('--floor-slots', company.floorLimit);
+  const deskSignature=JSON.stringify([company.units,company.floorLimit,selectedUnit]);
+  const rebuildDesk=$('bench').dataset.signature!==deskSignature;
+  if(rebuildDesk){$('bench').dataset.signature=deskSignature;
   const renderUnit = (u, active) => {
     const c = byId(u.id);
-    return `<article class="company-unit rarity-${c.tier} ${selectedUnit === u.uid ? 'chosen' : ''}" draggable="false" data-unit="${c.capability}" data-unit-id="${c.id}" data-star="${u.star}" data-instance="${u.uid}"><button class="unit-select" data-select="${u.uid}" aria-label="Select ${c.name}">${sceneMarkup(c,icon,active,phase==='live')}<span class="unit-stars">${'★'.repeat(u.star)} <small>${c.seniority}</small></span><b>${c.name}</b><span class="unit-traits"><span class="style-tag" data-tooltip-trait="${c.style}">${c.style}</span> · <span data-tooltip-trait="${c.specialty}">${c.specialty}</span></span><small class="unit-role">${c.combatRole}</small><small class="unit-metrics">Waiting for open</small></button><button class="unit-details" data-inspect="${c.id}" data-inspect-uid="${u.uid}">Read unit</button><div class="unit-actions"><button data-move="${u.uid}" ${!editable ? 'disabled' : ''}>${active ? 'To bench' : floor.length >= company.floorLimit ? 'Swap in' : 'Deploy'}</button><button data-sell="${u.uid}" ${!editable ? 'disabled' : ''} title="Sell for ${sellValue(u)} credits">${sellValue(u)} ◎ ↗</button></div></article>`;
+    return `<article class="company-unit rarity-${c.tier} ${selectedUnit === u.uid ? 'chosen' : ''}" draggable="false" data-unit="${c.capability}" data-unit-id="${c.id}" data-star="${u.star}" data-instance="${u.uid}"><button class="unit-select" data-select="${u.uid}" aria-label="Select ${c.name}" title="${c.name}. ${c.simple}"><span class="bench-portrait"><span class="pixel-person" style="--sprite-row:${({maker:5,execution:6,research:7,hedge:8,manual:9,sizing:10})[c.capability]||5}"></span>${icon(c.icon)}</span>${sceneMarkup(c,icon,active,phase==='live')}<span class="unit-stars">${'★'.repeat(u.star)} <small>${c.seniority}</small></span><b>${c.name}</b><span class="unit-traits"><span class="style-tag" data-tooltip-trait="${c.style}">${c.style}</span> · <span data-tooltip-trait="${c.specialty}">${c.specialty}</span></span><small class="unit-role">${c.combatRole}</small><small class="unit-metrics">Waiting for open</small></button><button class="unit-details" data-inspect="${c.id}" data-inspect-uid="${u.uid}">Read unit</button><div class="unit-actions"><button data-move="${u.uid}" ${!editable ? 'disabled' : ''}>${active ? 'To bench' : floor.length >= company.floorLimit ? 'Swap in' : 'Deploy'}</button><button data-sell="${u.uid}" ${!editable ? 'disabled' : ''} title="Sell for ${sellValue(u)} credits">${sellValue(u)} ◎ ↗</button></div></article>`;
   };
   $('desk').innerHTML = floor.map(u => renderUnit(u,true)).join('') + Array.from({length:company.floorLimit-floor.length},() => '<div class="desk-slot"><span class="plus">+</span><span>DEPLOY A TRADER</span></div>').join('');
   $('bench').innerHTML = bench.map(u => renderUnit(u,false)).join('') + Array.from({length:company.benchLimit-bench.length},() => '<div class="bench-empty">+</div>').join('');
@@ -114,12 +183,14 @@ function paintDesk() {
   $('build-traits').textContent = `DAY ${Math.min(day,5)} CAPACITY · NEXT ${floorLimitFor(week,Math.min(5,day+1))}`;
   document.querySelectorAll('[data-select]').forEach(b => b.addEventListener('click', () => { selectedUnit = Number(b.dataset.select); paintDesk(); }));
   document.querySelectorAll('[data-move]').forEach(b => b.addEventListener('click', () => {
-    if(!editable) return;
+    if(phase!=='prep') return;
     const swap = floor.find(u => u.uid === selectedUnit) || floor.at(-1);
     const ok = move(company,Number(b.dataset.move),swap?.uid);
     notice(ok ? 'Trading floor updated.' : 'Bench full. Swap a reserve onto the floor or sell a unit.'); syncCompany();
   }));
-  document.querySelectorAll('[data-sell]').forEach(b => b.addEventListener('click', () => { if(editable) { sell(company,Number(b.dataset.sell)); notice('Unit sold. Credits returned.'); syncCompany(); } }));
+  document.querySelectorAll('[data-sell]').forEach(b => b.addEventListener('click', () => { if(phase==='prep') { sell(company,Number(b.dataset.sell)); notice('Unit sold. Credits returned.'); syncCompany(); } }));
+  }
+  updateBenchAvailability();
   const counts = traitCounts(floor);
   $('traits').innerHTML = ['Style','Specialty'].map(category=>`<div class="trait-group"><span class="trait-group-label">${category==='Style'?'FIRM STYLES':'SPECIALTIES'}</span>${Object.entries(TRAITS).filter(([name,t])=>t.category===category && (counts[name]||0)>0).map(([name,t])=>{
     const count=counts[name]||0,level=traitLevel(count,name),target=count<t.thresholds[0]?t.thresholds[0]:t.thresholds[1];
@@ -147,6 +218,11 @@ function paintIncome() {
   $('income-preview').setAttribute('aria-label',`Next day income ${income.total} credits. Save 10 credits per interest point, maximum 5.`);
   $('income-preview').title=income.interest===5?'Maximum interest reached.':`Save ${next} more credits to reach the next interest threshold.`;
 }
+function shopSummary(c){
+  const identities={broker:'Follows recent price moves.','value-clerk':'Buys dips; sells rebounds.',clerk:'Blocks new risky exposure.','agency-lead':'Trades the rates / credit gap.',specialist:'Trades daily equity calls.',prime:'Posts depth; coordinates traders.',treasury:'Trims holdings; coordinates jobs.'};
+  return identities[c.id]||({maker:'Posts buy and sell offers.',research:'Shares imperfect price estimates.',hedge:'Pays to trim excess holdings.',manual:'Press unlocks immediate orders.',sizing:'Posts deeper buy and sell offers.',execution:'Updates offers quickly.'})[c.capability];
+}
+
 function paintShop() {
   paintIncome();
   $('credits').innerHTML = `${company.credits} <small>◎</small>`; $('shop').classList.remove('option-shop');
@@ -155,17 +231,22 @@ function paintShop() {
   $('reroll').disabled = phase !== 'prep' || company.credits < 2;
   $('lock-shop').disabled = phase !== 'prep'; $('lock-shop').textContent = company.locked ? 'Offers locked' : 'Lock offers'; $('lock-shop').setAttribute('aria-pressed',String(company.locked));
   $('shop-odds').innerHTML = `<span>DAY ${Math.min(day,5)} ODDS</span>` + oddsFor(week,day).map((p,i) => `<span class="odds rarity-${i+1}">${RARITIES[i]} <b>${p}%</b></span>`).join('');
+  const signature=JSON.stringify([company.offers,company.units.map(u=>[u.id,u.star])]);
+  if($('shop').dataset.signature!==signature){$('shop').dataset.signature=signature;
   $('shop').innerHTML = company.offers.map((id,slot) => {
     const c = byId(id); if(!c) return '<div class="shop-sold"><span>—</span>EMPTY OFFER</div>';
     const owned = company.units.filter(u => u.id === id).reduce((n,u) => n+3**(u.star-1),0);
     const disabled = phase !== 'prep' || company.credits < c.cost;
-    return `<div class="shop-offer" data-offer-id="${c.id}"><button class="shop-card rarity-${c.tier}" data-buy="${slot}" title="${c.simple}" ${disabled ? 'disabled' : ''} aria-label="Recruit ${c.seniority} ${c.name} for ${c.cost} credits. ${c.style} style, ${c.specialty} specialty. ${c.simple}"><div class="card-top"><span>${c.seniority}<small>${RARITIES[c.tier-1]}</small></span><span class="cost">${c.cost} ◎</span></div>${icon(c.icon)}<h3>${c.name}</h3><div class="shop-traits"><span class="style-tag" data-tooltip-trait="${c.style}" title="Firm style">${c.style}</span><span data-tooltip-trait="${c.specialty}" title="Specialty">${c.specialty}</span></div><p>${c.detail}</p><div class="role-tags">${c.tags.map(t=>`<span>${t}</span>`).join('')}</div><div class="pool-count" title="Free copies exclude all eight firms' owned units and reserved shop offers.">${company.pool.remaining[c.id]} free in shared bag / ${company.pool.total[c.id]}</div><div class="card-bottom">${owned ? `${owned} COPIES OWNED · ` : ''}RECRUIT TO BENCH +</div></button><button class="unit-details" data-inspect="${c.id}">Read unit · strengths & risks</button></div>`;
+    return `<div class="shop-offer" data-offer-id="${c.id}"><button class="shop-card rarity-${c.tier}" data-buy="${slot}" title="${c.simple}" ${disabled ? 'disabled' : ''} aria-label="Recruit ${c.seniority} ${c.name} for ${c.cost} credits. ${c.style} style, ${c.specialty} specialty. ${c.simple}"><div class="card-top"><span>${c.seniority}<small>${RARITIES[c.tier-1]}</small></span><span class="cost">${c.cost} ◎</span></div><span class="recruit-art"><span class="pixel-person" style="--sprite-row:${({maker:5,execution:6,research:7,hedge:8,manual:9,sizing:10})[c.capability]||5}"></span>${icon(c.icon)}</span><h3>${c.name}</h3><div class="shop-traits"><span class="style-tag" data-tooltip-trait="${c.style}" title="Firm style">${c.style}</span><span data-tooltip-trait="${c.specialty}" title="Specialty">${c.specialty}</span></div><p class="shop-simple">${shopSummary(c)}</p><div class="role-tags">${c.tags.map(t=>`<span>${t}</span>`).join('')}</div><div class="pool-count" title="Free copies exclude all eight firms' owned units and reserved shop offers.">${company.pool.remaining[c.id]} free in shared bag / ${company.pool.total[c.id]}</div><div class="card-bottom">${owned ? `${owned} COPIES OWNED · ` : ''}RECRUIT TO BENCH +</div></button><button class="unit-details" data-inspect="${c.id}">Read unit · strengths & risks</button></div>`;
   }).join('');
   document.querySelectorAll('[data-buy]').forEach(b => b.addEventListener('click', () => {
     if(phase !== 'prep') return;
     const result = buy(company,Number(b.dataset.buy)); notice(result.message);
     if(result.ok) { beep(550); syncCompany(); }
   }));
+  }
+  document.querySelectorAll('[data-buy]').forEach(b=>{const c=byId(company.offers[Number(b.dataset.buy)]);b.disabled=phase!=='prep'||!c||company.credits<c.cost;});
+  $('shop-title').textContent=phase==='prep'?'Find your next edge.':'Recruitment locked';
 }
 function paintControls() {
   document.querySelector('.app').dataset.phase=phase;
@@ -234,11 +315,11 @@ function paintNumbers() {
   document.querySelector('.risk-summary').title=risk.definition;
   $('risk-sigma').textContent=`$${risk.sigma1s.toFixed(2)}`;$('risk-gross').textContent=`$${risk.gross.toFixed(0)}`;
   $('positions').innerHTML = ASSETS.map((a, i) => `<div class="position" ${state.active[i]?'':'hidden'}>${a.ticker}<b>${f.inv[i] >= 0 ? '+' : ''}${f.inv[i]}</b></div>`).join('');
-  const remaining = Math.max(0, 40 - state.tick / 2); $('timer').textContent = `0:${String(Math.ceil(remaining)).padStart(2, '0')}`; $('timer').classList.toggle('urgent', phase === 'live' && remaining < 10);
+  paintClock();
   paintFocus();paintUnitActivity(state);battleReadout.paint(state);
-  const opponent=['prep','close','weekend'].includes(phase)?[]:state.firms[1].units;
+  const opponent=['opening','live','closing','results','advance','complete'].includes(phase)?state.firms[1].units:[];
   document.body.dataset.battlePhase=phase;
-  combatFloor.paint(state,{phase,market:selected,overlay:overlayMode,opponent,selectedUnit:boardSelection?.key??selectedUnit,selectedSide:boardSelection?.side??0});
+  combatFloor.paint(state,{phase,roundId:state.roundId,market:selected,overlay:overlayMode,opponent,selectedUnit:boardSelection?.key??selectedUnit,selectedSide:boardSelection?.side??0});
   $('tactical-board').style.aspectRatio=`${state.board.cols}/${state.board.rows}`;
   $('board-width').disabled=phase!=='prep';
   deployment.paint({own:state.firms[0].units,bench:reserves(company),opponent,board:state.board,state,activeRegions:company.activeRegions,instruments:state.instruments,phase});
@@ -247,8 +328,16 @@ function paintNumbers() {
   const q=state.books[selected],bids=q.orders.filter(o=>o.side==='buy'),asks=q.orders.filter(o=>o.side==='sell');
   $('exchange-status').textContent=`${ASSETS[selected].ticker} $${state.prices[selected].toFixed(2)} · ${bids.length?Math.max(...bids.map(o=>o.price))/ASSETS[selected].priceScale:'—'} / ${asks.length?Math.min(...asks.map(o=>o.price))/ASSETS[selected].priceScale:'—'}`;
   $('scout-stamp').textContent=phase==='prep'?`${ghost.name} · snapshot W${ghost.week} D${ghost.day}`:'Final opponent deployment revealed';
+  paintFloorContext();
   const summary=buildSummary(state);$('build-summary').innerHTML=[...summary.strengths.map(s=>`<span>${s}</span>`),...summary.weaknesses.map(s=>`<span class="build-caution">${s}</span>`)].join('');
 }
+function paintFloorContext(){
+  $('floor-phase-title').textContent=phase==='prep'?'Build your edge.':['results','closing'].includes(phase)?'The final positions.':phase==='weekend'?'Choose your risk.':phase==='complete'?'Match complete.':'Follow the flow.';
+  $('floor-phase-caption').textContent=phase==='prep'?'Drag reserves into an open market. Nearby support shares information and routing.':['results','closing'].includes(phase)?'Results are settled. Both firms remain on the floor for review.':phase==='weekend'?'Select a contract below. The next week waits for your choice.':phase==='complete'?'Final scores. Start a new match when ready.':phase==='advance'?'Preparing the next day. Your formation stays in place.':'Orders compete in shared books. Fills and profits are different.';
+  const rows=state.firms[0].units.map(u=>{const m=state.firms[0].unitLedger[u.uid??u.id],net=m?m.cash+m.inv.reduce((n,q,a)=>n+q*state.prices[a]*(ASSETS[a].multiplier||1),0):0;return {u,net,a:state.firms[0].activity[u.uid??u.id]};}).sort((a,b)=>Math.abs(b.net)-Math.abs(a.net));
+  $('floor-tape').innerHTML=`<span class="context-kicker">${phase==='prep'?'YOUR FORMATION':['results','closing','complete'].includes(phase)?'FINAL ORDER STREAMS':phase==='weekend'?'LAST DAY / SETTLED':'LIVE ORDER STREAMS'}</span>${rows.slice(0,3).map(r=>`<div class="stream-note"><b>${byId(r.u.id).name}</b><span class="${r.net<0?'stream-loss':'stream-gain'}">${phase==='prep'?byId(r.u.id).combatRole:money(r.net)}</span><small>${phase==='prep'?MARKETS.find(m=>m.id===regionAt(r.u.position)).name:`${r.a?.fills||0} filled / marked net`}</small></div>`).join('')||'<p>Your floor is empty. Recruits start on the bench below.</p>'}<div class="focus-note"><span class="context-kicker">${ASSETS[selected].name}</span><b>$${state.prices[selected].toFixed(selected===4?4:2)}</b><small>${state.tick?`${money(state.firms[0].pnl[selected])} / ${money(state.firms[1].pnl[selected])} net`:'One shared book. Two competing firms.'}</small></div>`;
+}
+
 function paintLobby() {
   lobby[0].health = health[0]; lobby[1].health = health[1];
   const scores = {mint:equity(state.firms[0],state.prices)-10000,cobalt:equity(state.firms[1],state.prices)-10000};
@@ -256,7 +345,7 @@ function paintLobby() {
     scores[lobby[match.a].id] = equity(match.state.firms[0],match.state.prices)-10000;
     scores[lobby[match.b].id] = equity(match.state.firms[1],match.state.prices)-10000;
   }
-  $('lobby-players').innerHTML = [...lobby].sort((a,b)=>b.health-a.health).map((p,i) => `<button class="lobby-player ${p.id === inspectPlayer ? 'inspecting' : ''} ${p.you ? 'local-player' : ''}" data-player="${p.id}" aria-label="Inspect ${p.name}" aria-pressed="${p.id === inspectPlayer}"><span class="lobby-rank">${i+1}</span><span class="lobby-avatar">${p.name.slice(0,1)}</span><span class="lobby-name">${p.name}<small>${p.you ? 'YOU' : 'BOT'} ${phase === 'prep' ? '· PREPARING' : p.health ? '· ' + money(scores[p.id] || 0) : '· ELIMINATED'}</small></span><b>${p.health}<small>HP</small></b></button>`).join('');
+  $('lobby-players').innerHTML = [...lobby].sort((a,b)=>b.health-a.health).map((p,i) => `<button class="lobby-player ${p.id === inspectPlayer ? 'inspecting' : ''} ${p.you ? 'local-player' : ''} ${p.id==='cobalt'?'active-rival':''}" data-player="${p.id}" aria-label="Inspect ${p.name}" aria-pressed="${p.id === inspectPlayer}"><span class="lobby-rank">${i+1}</span><span class="lobby-avatar">${p.name.slice(0,1)}</span><span class="lobby-name">${p.name}<small>${p.you ? 'YOU' : 'BOT'} ${phase === 'prep' ? '· PREPARING' : p.health ? '· ' + money(scores[p.id] || 0) : '· ELIMINATED'}</small></span><b>${p.health}<small>HP</small></b></button>`).join('');
   $('lobby-matches').innerHTML = otherMatches.length ? otherMatches.map(m => `<div class="match-row"><span>${lobby[m.a].name.split(' ')[0]} <b>${money(scores[lobby[m.a].id] || 0)}</b></span><small>vs</small><span>${lobby[m.b].name.split(' ')[0]} <b>${money(scores[lobby[m.b].id] || 0)}</b></span></div>`).join('') : '<p class="lobby-note">Three bot pairings begin at the opening bell.</p>';
   const player = lobby.find(p => p.id === inspectPlayer) || lobby[1];
   const units = player.you ? deployed(company) : botUnits(player,week);
@@ -282,12 +371,12 @@ function paintPrep() {
   $('phase-label').textContent = 'PRE-MARKET'; $('clock-label').textContent = 'OPEN IN'; $('start').disabled = !deployed(company).length; $('start').innerHTML = 'RING THE BELL <span>↗</span>';
   $('duel-label').textContent=({calm:'CALM',trend:'DIRECTIONAL',shock:'UNSTABLE'})[progression(week,day).scenario];
   $('start-note').textContent = !deployed(company).length ? 'Deploy a trader from your bench to open the market.' : option ? `${option.toUpperCase()} ready · $8 premium at opening · expires today.` : '40 seconds. One shared market. Find your edge.';
-  $('pause').hidden = true; document.querySelector('.status-dot').classList.remove('live');
+  document.querySelector('.status-dot').classList.remove('live');
   $('ticker').innerHTML=`<span class="muted">TODAY'S CONDITIONS</span><span class="scenario-label">${SCENARIOS[progression(week,day).scenario].name}</span> · Customer orders have price limits.`;
+  paintClock();updateBenchAvailability();
 }
-function begin() {
-  if (phase !== 'prep' || !deployed(company).length) return;
-  phase = 'opening'; paused = false;
+function begin() {flushClock();if(phase==='prep'&&deployed(company).length){lifecycle.ready();lifecycle.advance(0);}}
+function openDay() {
   const rival = botUnits(lobby[1],week), seed = daySeed();
   state = createDay(deployed(company),seed,rival,option,sessionOptions()); cards=state.firms[0].cards; option = null;
   marketFeel.reset(state);
@@ -296,9 +385,8 @@ function begin() {
   $('start').disabled = true; $('start').innerHTML = 'MARKET IS OPEN <span>●</span>'; $('phase-label').textContent = 'MARKET OPEN'; $('clock-label').textContent = 'TO THE CLOSE';
   $('start-note').textContent = 'Select a market. Your terminal controls the whole desk.'; $('pause').hidden = false; $('pause').textContent = 'Pause'; document.querySelector('.status-dot').classList.add('live');
   paintDesk(); paintShop(); paintControls(); paintNumbers(); paintLobby();paintOpponent(); beep(700, .2);
-  clearInterval(interval);$('phase-label').textContent='OPENING MARKET';$('pause').hidden=true;
-  const openingMs=$('reduce-effects').checked||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches?0:1200;
-  clearTimeout(openingTimeout);openingTimeout=setTimeout(()=>{if(phase!=='opening')return;phase='live';$('phase-label').textContent='MARKET OPEN';$('pause').hidden=false;paintControls();paintNumbers();interval=setInterval(tick,500);},openingMs);
+  $('phase-label').textContent='OPENING BELL';
+
 }
 function tick() {
   if (paused || phase !== 'live') return;
@@ -317,10 +405,10 @@ function tick() {
   if (shock >= 0) { pop(shock, `${ASSETS[shock].ticker} ${state.prices[shock] > state.previous[shock] ? '↑' : '↓'}`, 0, true); beep(180, .09); }
   const [f, r] = state.firms, leader = f.pnl.indexOf(Math.max(...f.pnl));
   $('ticker').innerHTML = f.risk >= 90 ? '<span class="muted">INVENTORY ALERT</span> Near capacity. Quotes may stop filling.' : state.events.some(e => e.type === 'rebalance' && e.firm === 0) ? '<span class="muted">REBALANCED</span> Exposure trimmed. Execution costs paid.' : state.events.some(e => e.type === 'hedge' && e.firm === 0) ? '<span class="muted">RISK SPECIALIST</span> Inventory trimmed. Hedge costs applied.' : `<span class="muted">ON THE FLOOR</span> ${ASSETS[leader].ticker} ${money(f.pnl[leader])} <span class="muted">/</span> ${f.fills.reduce((n, v) => n + v, 0) > r.fills.reduce((n, v) => n + v, 0) ? 'Mint leads executed volume.' : 'Cobalt leads executed volume.'}`;
-  if (state.done) closeDay();
+
 }
 function closeDay() {
-  clearInterval(interval); phase = 'close';
+  if(state.resultCommitted)return;state.resultCommitted=true;$('next').disabled=true;beep(260,.15);
   const scores = state.firms.map(f => equity(f, state.prices) - 10000), gap = scores[0] - scores[1];
   const damage = dayDamage(...scores);
   if (damage) health[gap > 0 ? 1 : 0] = Math.max(0, health[gap > 0 ? 1 : 0] - damage);
@@ -332,7 +420,9 @@ function closeDay() {
   $('recap-stats').innerHTML = `<span>${money(scores[0])}</span><span>${money(scores[1])}</span>`;
   const report=closingAnalysis(state),name=r=>r?.card.name||'None';
   const rankedMarkets=state.firms[0].pnl.map((net,a)=>({net,a})).filter(x=>state.active[x.a]).sort((a,b)=>b.net-a.net),best=rankedMarkets[0],worst=rankedMarkets.at(-1);
-  $('recap-subtitle').textContent+=` / ${name(report.top)} ${money(report.top?.net||0)} / ${ASSETS[best.a].name} ${money(best.net)}`;
+  let facts=$('recap-facts');if(!facts){facts=document.createElement('div');facts.id='recap-facts';$('recap-stats').after(facts);}
+  const decisive=rankedMarkets.reduce((best,x)=>Math.abs(state.firms[0].pnl[x.a]-state.firms[1].pnl[x.a])>Math.abs(state.firms[0].pnl[best.a]-state.firms[1].pnl[best.a])?x:best,rankedMarkets[0]);
+  facts.innerHTML=`<p><small>TOP STREAM</small><b>${name(report.top)}</b> ${money(report.top?.net||0)}</p><p><small>OPEN EXPOSURE</small><b>${(report.risk?.gross||0)>0?name(report.risk):'Flat'}</b> $${(report.risk?.gross||0).toFixed(0)} gross</p><p><small>LARGEST REGIONAL GAP</small>${ASSETS[decisive.a].name}: ${money(state.firms[0].pnl[decisive.a])} / ${money(state.firms[1].pnl[decisive.a])}</p>${report.moment?.type==='hedge'?`<p><small>PROTECTION ACTIVITY</small>${report.moment.qty} trimmed / $${report.moment.cost.toFixed(2)} cost</p>`:''}`;
   $('recap-subtitle').title=`Largest open exposure: ${name(report.risk)}, $${(report.risk?.gross||0).toFixed(0)} gross. Lowest regional result: ${ASSETS[worst.a].name} ${money(worst.net)}. Protection activity: ${report.helper?.activity.hedged||0} units trimmed, $${(report.helper?.activity.cost||0).toFixed(2)} cost. Not a counterfactual losses-avoided claim.`;
   $('closing-highlights').innerHTML=`<div><small>TOP ORDER STREAM</small><b>${name(report.top)}</b><span>${money(report.top?.net||0)}</span></div><div><small>LARGEST OPEN EXPOSURE</small><b>${name(report.risk)}</b><span>$${(report.risk?.gross||0).toFixed(0)} gross</span></div><div><small>SUPPORT ACTIVITY · PROXY</small><b>${name(report.helper)}</b><span>${report.helper?.activity.hedged||0} trimmed · ${report.helper?.activity.signalChecked||0} signals assessed</span></div><div><small>LOWEST ORDER STREAM</small><b>${name(report.weak)}</b><span>${money(report.weak?.net||0)}</span></div><p>${report.advice}</p>`;
   if(report.moment){const m=report.moment,p=document.createElement('p');p.textContent=`Largest recorded interaction: ${byId(m.source.id).name} ${m.type==='hedge'?`trimmed ${m.qty} ${ASSETS[m.asset].ticker}, paying $${m.cost.toFixed(2)}`:`won ${m.qty} ${ASSETS[m.asset].ticker} customer units on ${m.reason==='price'?'price':'queue priority'}`}. Volume is not profit.`;$('closing-highlights').append(p);}
@@ -343,33 +433,41 @@ function closeDay() {
   settleExhibition(lobby,otherMatches); paintLobby();
   const result = $('day-result'); result.hidden = false; result.className = `day-result ${!damage ? 'draw' : gap > 0 ? 'victory' : 'defeat'}`;
   $('confetti').innerHTML = !damage ? '' : Array.from({length:28},(_,i)=>`<i style="--x:${(i*37)%100}%;--delay:${i%7*.08}s;--rotate:${i*53}deg;--drift:${(i%5-2)*35}px"></i>`).join('');
-  $('next').focus({preventScroll:true}); beep(gap >= 0 ? 780 : 200, .3);
+  beep(gap >= 0 ? 780 : 200, .3);
 }
-function nextDay() {
-  $('day-result').hidden=true; if (health.some(h => !h)) { reset(); return; }
-  if (day === 5) { weekend(); return; }
-  day++; refreshDay(company,week,day);prepareBots(lobby,week,true,day); phase = 'prep'; state = createDay(deployed(company),daySeed(),botUnits(lobby[1],week),null,sessionOptions()); cards=state.firms[0].cards; otherMatches=[]; previousScores = [0, 0]; paintPrep();
+function nextDay(){flushClock();if(phase==='complete'){reset();return;}if(lifecycle.skipResults())lifecycle.advance(0);}
+function advanceDay(){
+  day++;refreshDay(company,week,day);prepareBots(lobby,week,true,day);
+  state=createDay(deployed(company),daySeed(),botUnits(lobby[1],week),null,sessionOptions());cards=state.firms[0].cards;otherMatches=[];previousScores=[0,0];
 }
+function advanceWeek(){
+  week++;day=1;refreshDay(company,week,day);prepareBots(lobby,week,true,day);
+  state=createDay(deployed(company),daySeed(),botUnits(lobby[1],week),null,sessionOptions());cards=state.firms[0].cards;otherMatches=[];previousScores=[0,0];
+}
+
 function weekend() {
-  phase = 'weekend'; day = 6; paintWeek(); paintDesk(); paintControls();
+  day = 6;$('shop').dataset.signature=''; paintWeek(); paintDesk(); paintControls();
   $('phase-label').textContent = 'WEEKEND DRAFT'; $('shop-eyebrow').textContent = 'THE WEEKEND / DERIVATIVES DRAFT'; $('shop-title').textContent = 'A different shape of risk.'; $('credits').innerHTML = `${company.credits} <small>◎</small>`; $('shop').classList.add('option-shop');
   $('reroll').disabled=true; $('lock-shop').disabled=true;
   const choices = [ ['call', 'Long Call', 'Pays 12 × max(ETF close − $100, 0). $8 premium. Expires Monday.', 'signal'], ['put', 'Protective Put', 'Pays 12 × max($100 − ETF close, 0). $8 premium. Expires Monday.', 'shield'], ['skip', 'Stay Liquid', 'Skip the premium. Carry no option into Monday.', 'blocks'] ];
   $('shop').innerHTML = choices.map(([id, name, desc, img]) => `<button class="shop-card" data-option="${id}"><div class="card-top"><span>MONDAY EXPIRY</span><span class="cost">${id === 'skip' ? '$0' : '$8'}</span></div>${icon(img)}<h3>${name}</h3><p>${desc}</p><div class="card-bottom">SELECT & OPEN NEXT WEEK →</div></button>`).join('');
   $('start').disabled = true; $('start').innerHTML = 'CHOOSE BELOW <span>↓</span>'; $('start-note').textContent = 'One contract. Premium paid from Monday’s trading capital.'; $('ticker').innerHTML = '<span class="muted">MARKET CLOSED</span> Pick an option below. A new week awaits.';
   document.querySelectorAll('[data-option]').forEach(b => b.addEventListener('click', () => {
-    option = b.dataset.option === 'skip' ? null : b.dataset.option; week++; day = 1; refreshDay(company,week,day);prepareBots(lobby,week,true,day); phase = 'prep'; state = createDay(deployed(company),daySeed(),botUnits(lobby[1],week),null,sessionOptions()); cards=state.firms[0].cards; otherMatches=[]; previousScores = [0, 0]; paintPrep(); beep(520);
+    if(phase!=='weekend'||paused)return;option=b.dataset.option==='skip'?null:b.dataset.option;lifecycle.chooseWeekend();beep(520);
   }));
 }
 function reset() {
-  clearTimeout(openingTimeout);
-  clearInterval(interval);marketFeel.reset(state);matchSeed=Date.now()>>>0;company=enableRegionalCompany(createCompany(matchSeed),1,1);lobby=makeLobby(company.pool,company,matchSeed);ghost=scoutSnapshot(lobby[1]); otherMatches=[]; selectedUnit=null; cards = []; day = 1; week = 1; health = [100, 100]; phase = 'prep'; option = null; paused = false; previousScores = [0, 0];
-  marketEnabled=ASSETS.map(()=>true);state=createDay([],daySeed(),botUnits(lobby[1],week),null,sessionOptions()); $('rival-build').textContent = 'Spread Engine / Signal Lab'; paintMap(); paintPrep();
+  marketFeel.reset(state);matchSerial++;matchSeed=Date.now()>>>0;company=enableRegionalCompany(createCompany(matchSeed),1,1);lobby=makeLobby(company.pool,company,matchSeed);ghost=scoutSnapshot(lobby[1]); otherMatches=[]; selectedUnit=null; cards = []; day = 1; week = 1; health = [100, 100]; option = null; paused = false; previousScores = [0, 0];
+  marketEnabled=ASSETS.map(()=>true);state=createDay([],daySeed(),botUnits(lobby[1],week),null,sessionOptions()); $('rival-build').textContent = 'Spread Engine / Signal Lab'; paintMap();lastClock=performance.now();lifecycle.reset();
   notice('Recruit to your bench, then deploy. Three matching copies merge automatically.');
 }
+let inspectionPaused=false;
+function pauseForInspection(){if(!paused&&['prep','live','results'].includes(phase)){inspectionPaused=true;$('pause').click();}}
+document.addEventListener('close',()=>{if(inspectionPaused&&!document.querySelector('dialog[open]')){inspectionPaused=false;if(paused)$('pause').click();}},true);
+
 function inspectUnit(id,uid,star=1) {
   const c=byId(id); if(!c)return;
-  if(phase==='live' && !paused)$('pause').click();
+  pauseForInspection();
   const owned=company.units.find(u=>u.uid===Number(uid)), config=owned?.deployed?state.firms[0].config:buildConfig([{id,star:owned?.star||star}]);
   $('unit-title').textContent=c.name;
   $('unit-career').textContent=`${c.seniority} · ${c.cost} CREDIT${c.cost===1?'':'S'} · ${c.style} / ${c.specialty}`;
@@ -401,15 +499,15 @@ $('market-toggle').addEventListener('click',()=>{
 $('start').addEventListener('click', begin); $('next').addEventListener('click', nextDay); $('reset').addEventListener('click', reset);
 $('reroll').addEventListener('click',()=>{ if(phase==='prep' && reroll(company,week)) { notice('Five fresh offers.'); paintShop(); beep(350); } });
 $('lock-shop').addEventListener('click',()=>{ if(phase==='prep') { company.locked=!company.locked; paintShop(); } });
-$('pause').addEventListener('click', () => { paused = !paused; $('pause').textContent = paused ? 'Resume' : 'Pause'; $('phase-label').textContent = paused ? 'PAUSED' : 'MARKET OPEN'; paintControls();paintFocus(); });
+$('pause').addEventListener('click', () => { flushClock();paused = !paused;lifecycle.setPaused(paused); $('pause').textContent = paused ? 'Resume' : 'Pause'; $('phase-label').textContent = paused ? 'PAUSED' : 'MARKET OPEN'; paintControls();paintFocus();paintClock(); });
 $('sound').addEventListener('click', () => {
   sound = !sound; if (sound) { audio ??= new (window.AudioContext || window.webkitAudioContext)(); audio.resume(); beep(500); }
   $('sound').innerHTML = `♪ <span>${sound ? 'ON' : 'OFF'}</span>`; $('sound').setAttribute('aria-label', `${sound ? 'Disable' : 'Enable'} sound`);
 });
-$('help').addEventListener('click', () => { if (phase === 'live' && !paused) $('pause').click(); $('help-dialog').showModal(); });
+$('help').addEventListener('click', () => { pauseForInspection(); $('help-dialog').showModal(); });
 $('close-help').addEventListener('click', () => $('help-dialog').close());
 $('build-guide').addEventListener('click',()=>{
-  if(phase==='live' && !paused)$('pause').click();
+  pauseForInspection();
   $('guide-traits').innerHTML=Object.entries(TRAITS).map(([name,t])=>`<div class="guide-trait"><b>${name} <small>${t.category}</small></b><p>${t.summary}</p><p>${t.thresholds.map((n,i)=>`<strong>${n}</strong> ${t.effects[i]}`).join('<br>')}</p><small>${t.tradeoff}</small></div>`).join('');
   $('build-guide-dialog').showModal();
 });
@@ -420,8 +518,9 @@ document.addEventListener('keydown', e => {
 });
 state=createDay(deployed(company),daySeed(),botUnits(lobby[1],week),null,sessionOptions());cards=state.firms[0].cards;
 initializeTooltips(document,{counts:()=>traitCounts(deployed(company)),credits:()=>company.credits});
-initializeCatalog({document,icon,onInspect:id=>inspectUnit(id),onOpen:()=>{if(phase==='live'&&!paused)$('pause').click();}});
-paintMap(); paintPrep();
+initializeCatalog({document,icon,onInspect:id=>inspectUnit(id),onOpen:pauseForInspection});
+paintMap(); lifecycle.start();
+lastClock=performance.now();interval=setInterval(flushClock,250);
 $('board-overlay').addEventListener('change',()=>{overlayMode=$('board-overlay').value;paintNumbers();});
 $('board-width').addEventListener('change',()=>{if(phase!=='prep')return;company.board=boardConfig({cols:Number($('board-width').value)});assignPositions(deployed(company),company.board);syncCompany();notice('Board geometry updated; any out-of-bounds units moved to available tiles.');});
 document.addEventListener('click',e=>{if(e.target.closest?.('[data-select]'))$('analytics-drawer').open=true;});

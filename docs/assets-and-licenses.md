@@ -4,7 +4,7 @@ Verified 2026-10-23 against original sources and downloaded license text. No com
 
 | Asset | Author / source | License | Modifications / use |
 | --- | --- | --- | --- |
-| Roguelike Characters 2.0 | Kenney, https://kenney.nl/assets/roguelike-characters | CC0 1.0 | Unmodified transparent sprite sheet; runtime 16×16 frame selection from first column, rows 5–10, 1px spacing, nearest-neighbor scale. Characters at trading workstations. |
+| Roguelike Characters 2.0 | Kenney, https://kenney.nl/assets/roguelike-characters | CC0 1.0 | Unmodified transparent sprite sheet; runtime 16×16 frame selection from first column, rows 5–10, 1px spacing, nearest-neighbor scale. Characters at trading workstations; the phase-aware shop and bench also use CSS crops of these same rows alongside original role icons. |
 | Workstations, role objects, tickets and links | Original project procedural graphics in floor-pixi.js | Project source, no third-party artwork | Drawn from rectangles/lines; distinct monitor, shield, antenna, lever, stack and option silhouettes. Also the missing-art fallback. |
 | Existing SVG icons and CSS scenes | Original project source | Project source, no external asset attribution | Retained for accessible cards and no-WebGL fallback. |
 | PixiJS 8.22.0 | PixiJS team, https://github.com/pixijs/pixijs | MIT | Bundled for browser rendering; copyright/license retained in assets/vendor/PixiJS-LICENSE and bundle legal notices. |

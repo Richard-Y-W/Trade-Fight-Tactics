@@ -1,3 +1,25 @@
+# Current iteration: continuous match loop and phase-aware layout
+
+Implemented 2026-10-23. One authoritative lifecycle replaces manual round progression: 30s preparation, 1.2s reveal, 40s trading (all 80 financial steps), 0.75s close, 3s settled review and 0.75s advance. The next day starts automatically. Weekends await a required selection; match completion holds for restart. Pause stops the full clock. Financial settlement and HP/income updates are guarded against repetition.
+
+Prep has larger characterful bench units and readable five-card recruiting. Combat expands the same square floor and compresses the locked shop, with optional expansion. Sidebars narrow to about 16% each. Context panels use the floor's spare horizontal area. Both firms remain visible through results, and real top-stream/exposure/regional observations explain the outcome. Player sprites, canvas and unchanged shop/bench elements persist through phase-only transitions.
+
+Validation: 85 Node tests, including six lifecycle/real-engine timing tests; nine Edge browser journeys, including automatic full cycles at all three desktop resolutions, frozen score/HP, optional shop expansion, pause, element and sprite identity retention, mid-transition square geometry, existing drag/scout/full-week/weekend/reduced-motion/fallback cases, and a real-time full-cycle recording. Syntax checks and renderer build passed. Screenshots were inspected, not only measured: clipped bench actions, a detached placement hint, crowded unit statistics and an overflowing HUD pause link were corrected. Final screenshot/geometry artifacts are listed in [continuous-game-loop.md](continuous-game-loop.md).
+
+Measured at normal zoom (pixels; square board):
+
+| Viewport | Prep board / bench / shop | Combat board / bench / shop | Sidebar width |
+|---|---|---|---|
+| 1920x1080 | 582 / 110 / 235 | 743 / 90 / 99 | 307 |
+| 1440x900 | 470 / 92 / 196 | 598 / 78 / 83 | 230 |
+| 1366x768 | 364 / 90 / 184 | 480 / 78 / 80 | 219 |
+
+All eight bench slots and five offers remain visible with no document scrolling. Prep titles measure 14-16px, costs 17-19px, bench names 12px. The large-screen combat board and prep shop use more room than the starting target ranges where the viewport permits it; this preserves readable drafting and a larger arena without overflow. Results sit mostly in the right contextual area, leaving the final formation visible. Narrower than 1100px intentionally uses a stacked, scrolling layout. Zoom/DPR combinations were not exhaustively tested.
+
+No trading-model or balance overhaul is claimed: Friday stress losses, missing margin/financing, simplified instruments and the fixed local rival remain. Human beginner comprehension/fun testing and networked PvP remain outstanding. [Implementation, phase rules and known limits](continuous-game-loop.md).
+
+## Prior iteration results (historical)
+
 # Current shared-market implementation - 2026-10-23
 
 Implemented a viewport-sized three-column shell, exact irregular shared 8 x 8 floor, real six-product model and progressive unlocks, eligible market assignment, distinct contract/tick accounting, actual-event regional gateways, deterministic dual ownership slots, 1.2s reveal and closing fade, readable badges and hover inspection, explicit fallback, advanced factor-risk inspection and bounded primary controls. Existing recruitment, pool, bench, merges, interest, traits, paid interventions, weekend tickets and historical headless fixtures remain.
